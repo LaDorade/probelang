@@ -1,0 +1,27 @@
+program =
+    { statement }
+    ;
+
+
+statement =
+    ;
+
+call = IDENT, {S}, '(', { expr }, ')'
+    | litteral
+    ;
+mul  = call, {S}, [ ('*' | '/' | '%'), {S}, call ] ;
+add  = mul,  {S}, [ ('+' | '-'), {S}, mul ] ;
+expr =
+    add
+    | '(', expr, ')'
+    ;
+
+litteral = NUMBER | STRING ;
+IDENT  = letter, {letter | digit | '_' | '-'} ;
+NUMBER = [ '-' ], digit, { digit };
+STRING = '"', { any }, '"';
+digit  = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+S      = { " " | "\n" | "\t" | "\r" | "\f" | "\b" } ;
+
+letter = ;
+any    = ;
