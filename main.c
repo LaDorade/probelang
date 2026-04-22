@@ -7,6 +7,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "parser.h"
+
 #define STRING_VIEW_IMPLEMENTATION
 #include "string_view.h"
 #define LEXER_IMPLEMENTATION
@@ -19,7 +21,7 @@
 
 int main(void)
 {
-    char *path = "probe.ms";
+    char *path = "mini.ms";
     FILE *file = fopen(path, "r");
     if (!file) {
         printf("Could not open file at path: %s\n", path);
@@ -221,16 +223,31 @@ int main(void)
         }
     }
 
-    for (int i = 0; i < BUF_SIZE; i++) {
-        Token tok = tokens[i];
-        if (tok.kind == Lex_Ident)
-            printf("Iden: %*s\n", (int)tok.string.len, tok.string.items);
-        else if (tok.kind == Lex_Number)
-            printf("Number: %d\n", tok.number);
-        else if (tok.kind == Lex_String)
-            printf("String: %*s\n", (int)tok.string.len, tok.string.items);
-        else if (tok.kind == Lex_EOF) break;
-    }
+    // for (int i = 0; i < BUF_SIZE; i++) {
+    //     Token tok = tokens[i];
+    //     if (tok.kind == Lex_Ident)
+    //         printf("Iden: %*s\n", (int)tok.string.len, tok.string.items);
+    //     else if (tok.kind == Lex_Number)
+    //         printf("Number: %d\n", tok.number);
+    //     else if (tok.kind == Lex_String)
+    //         printf("String: %*s\n", (int)tok.string.len, tok.string.items);
+    //     else if (tok.kind == Lex_Plus)
+    //         printf("+\n");
+    //     else if (tok.kind == Lex_Mul)
+    //         printf("*\n");
+    //     else if (tok.kind == Lex_EOF) break;
+    // }
 
+    Parser parser = {0};
+    parser.tokens = tokens;
+    parser.count  = current_tok;
+
+    Areno parse_areno = {0};
+    Expr *expr = parse_expression(&parser, &parse_areno);
+    areno_free(&areno);
+
+    dump_expression(expr, 0);
+
+    areno_free(&parse_areno);
     return 0;
 }
