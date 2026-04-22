@@ -1,6 +1,7 @@
 #ifndef  PARSER_H
 #define  PARSER_H
 
+#include <stdarg.h>
 #include <assert.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -39,15 +40,6 @@ typedef enum {
     Expr_LastExpr = Expr_Unary,
 } Expr_Kind;
 
-typedef enum {
-    Binary_Mul  = Lex_Mul,
-    Binary_Plus = Lex_Plus
-} Binary_Operator;
-
-typedef enum {
-    Unary = Lex_Plus
-} Unary_Operator;
-
 struct Expr {
     Expr_Kind kind;
     union {
@@ -61,14 +53,14 @@ struct Expr {
 };
 
 struct Unary_Op {
-    Expr           *expr;
-    Unary_Operator  operand;
+    Expr  *expr;
+    Lexeme operand;
 };
 
 struct Binary_Op {
-    Expr           *lhs;
-    Expr           *rhs;
-    Binary_Operator operand;
+    Expr  *lhs;
+    Expr  *rhs;
+    Lexeme operand;
 };
 
 Expr *parse_expression(Parser *parser, Areno *areno);
@@ -86,7 +78,8 @@ void parser_advance(Parser *parser)
     if (parser_peek(parser).kind == Lex_EOF) return;
     parser->cursor += 1;
 }
-int parser_match(Parser *parser, Lexeme lexeme)
+
+int parser_match_imp(Parser *parser, Lexeme lexeme)
 {
     Token current = parser->tokens[parser->cursor];
     if (current.kind == lexeme) {
@@ -95,9 +88,26 @@ int parser_match(Parser *parser, Lexeme lexeme)
     }
     return 0;
 }
+#define parser_match(...) match(__VA_ARGS__, Lex_Invalid)
+Token match(Parser *parser, ...)
+{
+    va_list args;
+    va_start(args, parser);
+    Lexeme arg;
+    while ((arg = va_arg(args, Lexeme)) != Lex_Invalid) {
+        Token current = parser->tokens[parser->cursor];
+        if (parser_match_imp(parser, arg)) {
+            return current;
+        }
+    }
+    return (Token) {
+        .kind = Lex_Invalid 
+    };
+}
+
 void parser_expect(Parser *parser, Lexeme lexeme)
 {
-    if (!parser_match(parser, lexeme)) {
+    if (parser_match(parser, lexeme).kind == Lex_Invalid) {
         assert(0 && "Exepcted failed");
     }
 }
@@ -112,14 +122,15 @@ Expr *parse_addition(Parser *parser, Areno *areno)
 {
     Expr *lhs = parse_mul(parser, areno);
 
-    while (parser_match(parser, Lex_Plus)) {
+    Token current;
+    while ((current = parser_match(parser, Lex_Plus, Lex_Minus)).kind != Lex_Invalid) {
         Expr *rhs = parse_mul(parser, areno);
 
         Binary_Op *bin_op = (Binary_Op *) areno_alloc(areno, sizeof(Binary_Op));
 
         bin_op->lhs     = lhs;
         bin_op->rhs     = rhs;
-        bin_op->operand = Binary_Plus;
+        bin_op->operand = current.kind;
         
         Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
         expr->kind      = Expr_Binary;
@@ -132,17 +143,17 @@ Expr *parse_addition(Parser *parser, Areno *areno)
 
 Expr *parse_mul(Parser *parser, Areno *areno)
 {
-
     Expr *lhs = parse_terminal(parser, areno);
 
-    while (parser_match(parser, Lex_Mul)) {
+    Token current;
+    while ((current = parser_match(parser, Lex_Mul, Lex_Divide, Lex_Modulo)).kind != Lex_Invalid) {
         Expr *rhs = parse_terminal(parser, areno);
 
         Binary_Op *bin_op = (Binary_Op *) areno_alloc(areno, sizeof(Binary_Op));
 
         bin_op->lhs     = lhs;
         bin_op->rhs     = rhs;
-        bin_op->operand = Binary_Mul;
+        bin_op->operand = current.kind;
         
         Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
         expr->kind      = Expr_Binary;
@@ -221,6 +232,7 @@ void dump_expression (Expr *expr, int level)
         case Expr_Unary:
         case Expr_String:
         case Expr_Invalid:
+            assert(0 && "[TODO] dump_expression");
             break;
     }
 }
