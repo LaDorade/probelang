@@ -1,27 +1,15 @@
-program =
-    { statement }
-    ;
+program = { statement } ;
+
+statement = { expression };
+
+# Expressions (higher have priority)
+expression = add
+add        = mul,     {S}, [ ('+' | '-'), {S}, mul ] ;
+mul        = primary, {S}, { ('*' | '/' | '%'), {S}, primary } ;
+primary    = terminal | '(' expression ')'
 
 
-statement =
-    ;
-
-call = IDENT, {S}, '(', { expr }, ')'
-    | litteral
-    ;
-mul  = call, {S}, [ ('*' | '/' | '%'), {S}, call ] ;
-add  = mul,  {S}, [ ('+' | '-'), {S}, mul ] ;
-expr =
-    add
-    | '(', expr, ')'
-    ;
-
-litteral = NUMBER | STRING ;
-IDENT  = letter, {letter | digit | '_' | '-'} ;
-NUMBER = [ '-' ], digit, { digit };
-STRING = '"', { any }, '"';
-digit  = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
-S      = { " " | "\n" | "\t" | "\r" | "\f" | "\b" } ;
-
-letter = ;
-any    = ;
+terminal = ident | number | string ;
+ident    = alpha,  {alpha | digit | '_' | '-'} ;
+number   = [ '-' ], digit, { digit };
+string   = '"',    {any}, '"';
