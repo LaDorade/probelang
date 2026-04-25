@@ -57,15 +57,14 @@ Expr *parse_addition(Parser *parser, Areno *areno)
     while ((current = parser_match(parser, Lex_Plus, Lex_Minus)).kind != Lex_Invalid) {
         Expr *rhs = parse_mul(parser, areno);
 
-        Binary_Op *bin_op = (Binary_Op *) areno_alloc(areno, sizeof(Binary_Op));
-
-        bin_op->lhs     = lhs;
-        bin_op->rhs     = rhs;
-        bin_op->operand = current.kind;
-        
         Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
+
         expr->kind      = Expr_Binary;
-        expr->binary_op = bin_op;
+        expr->binary_op = (Binary_Op) {
+            .lhs     = lhs,
+            .rhs     = rhs,
+            .operand = current.kind,
+        };
 
         lhs = expr;
     }
@@ -80,15 +79,14 @@ Expr *parse_mul(Parser *parser, Areno *areno)
     while ((current = parser_match(parser, Lex_Mul, Lex_Divide, Lex_Modulo)).kind != Lex_Invalid) {
         Expr *rhs = parse_terminal(parser, areno);
 
-        Binary_Op *bin_op = (Binary_Op *) areno_alloc(areno, sizeof(Binary_Op));
-
-        bin_op->lhs     = lhs;
-        bin_op->rhs     = rhs;
-        bin_op->operand = current.kind;
-        
         Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
+
         expr->kind      = Expr_Binary;
-        expr->binary_op = bin_op;
+        expr->binary_op = (Binary_Op) {
+            .lhs     = lhs,
+            .rhs     = rhs,
+            .operand = current.kind,
+        };
         
         lhs = expr;
     }
@@ -129,7 +127,7 @@ Expr *parse_terminal(Parser *parser, Areno *areno)
             parser_expect(parser, Lex_Close_bracket);
             break;
         }
-        default: 
+        default:
             printf("Error, found lexeme: '%s'\n", lex_print(current.kind));
             assert(0 && "[TODO] parse_terminal");
             break;
@@ -148,12 +146,12 @@ void dump_expression (Expr *expr, int level)
             for (int i = 0; i < level; i++) printf(" ");
             printf("Binary:\n");
 
-            dump_expression(expr->binary_op->lhs, level + 1);
+            dump_expression(expr->binary_op.lhs, level + 1);
 
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Operator: %s\n", lex_print((Lexeme) expr->binary_op->operand));
+            printf("Operator: %s\n", lex_print((Lexeme) expr->binary_op.operand));
 
-            dump_expression(expr->binary_op->rhs, level + 1);
+            dump_expression(expr->binary_op.rhs, level + 1);
 
             break;
         case Expr_Ident:

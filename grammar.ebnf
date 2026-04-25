@@ -1,9 +1,12 @@
 program = { statement } ;
 
-statement = { expression };
+statement = { expression | assignation };
 
-# Expressions (higher have priority)
-expression = add
+assignation = 'let', S, ident, {S}, '=', {S}, expression, ';' ;
+
+# Expressions (lower have priority)
+expression = equality
+equality   = add,     {S}, [ ('<' | '>' | '==' | '!=' | '<=' | '>='), {S}, mul ] ; 
 add        = mul,     {S}, [ ('+' | '-'), {S}, mul ] ;
 mul        = primary, {S}, { ('*' | '/' | '%'), {S}, primary } ;
 primary    = terminal | '(' expression ')'

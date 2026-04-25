@@ -2,6 +2,7 @@
 #define LEXER_H_
 
 #include <stddef.h>
+#include "areno.h"
 #include "string_view.h"
 
 typedef struct {
@@ -61,11 +62,13 @@ typedef enum {
 typedef struct {
     Lexeme kind;
     union {
+        int         number;
         String_View string;
-        int number;
+        String_View ident;
     };
 } Token;
 
+Token*      lexer_lex(Lexer* lexer, Areno* areno);
 char        lex_peek(const Lexer *lex);
 void        lex_advance(Lexer *lex);
 int         lex_match(Lexer *lex, char c);
