@@ -1,6 +1,7 @@
 divide :: (a: number, b: number) number!string {
     if (b == 0) {
-        reject "Could not divide by 0"
+        reject "Could not 
+        divide by 0"
     }
 
     return a / b;

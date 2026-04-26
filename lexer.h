@@ -7,8 +7,8 @@
 
 typedef struct {
     char  *items;
-    size_t cursor;
-    size_t count;
+    size_t cursor, count;
+    size_t col,    row;
     int    eof;
 } Lexer;
 
@@ -61,6 +61,8 @@ typedef enum {
 
 typedef struct {
     Lexeme kind;
+    size_t row;
+    size_t col;
     union {
         int         number;
         String_View string;
@@ -73,6 +75,7 @@ char        lex_peek(const Lexer *lex);
 void        lex_advance(Lexer *lex);
 int         lex_match(Lexer *lex, char c);
 const char* lex_print(Lexeme lexeme);
+char*       token_print(const Token *tok, Areno *areno);
 
 #endif //LEXER_H_
 

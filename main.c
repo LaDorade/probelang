@@ -18,7 +18,7 @@
 
 int main(void)
 {
-    char *path = "mini.ms";
+    char *path = "probe.ms";
     FILE *file = fopen(path, "r");
     if (!file) {
         printf("Could not open file at path: %s\n", path);
@@ -43,15 +43,22 @@ int main(void)
     };
     Token* tokens = lexer_lex(&lexer, &lex_areno);
 
+    Token tok = tokens[0];
+    size_t count = 0;
+    while (tok.kind != Lex_EOF) {
+        printf("Token: %s at %ld:%ld\n", token_print(&tok, &lex_areno), tok.row, tok.col);
+        tok = tokens[++count];
+    }
 
-    Parser parser = (Parser) {
-        parser.tokens = tokens,
-    };
-    Expr *expr = parse_expression(&parser, &parse_areno);
-    areno_free(&lex_areno);
 
-    dump_expression(expr, 0);
-
-    areno_free(&parse_areno);
+    // Parser parser = (Parser) {
+    //     parser.tokens = tokens,
+    // };
+    // Expr *expr = parse_expression(&parser, &parse_areno);
+    // areno_free(&lex_areno);
+    //
+    // dump_expression(expr, 0);
+    //
+    // areno_free(&parse_areno);
     return 0;
 }
