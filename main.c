@@ -8,10 +8,9 @@
 
 #define STRING_VIEW_IMPLEMENTATION
 #include "string_view.h"
-#define LEXER_IMPLEMENTATION
-#include "lexer.h"
 #define ARENO_IMPLEMENTATION
 #include "areno.h"
+#include "lexer.h"
 
 #define BUF_SIZE 1024
 
