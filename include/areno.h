@@ -120,7 +120,7 @@ void areno_free(Areno* areno)
 void areno_reset(Areno* areno)
 {
 	areno->count = 0;
-	for (Areno* ar = ar->next; ar != NULL; ar = ar->next)
+	for (Areno* ar = areno->next; ar != NULL; ar = ar->next)
 	{
 		ar->count = 0;
 	}
