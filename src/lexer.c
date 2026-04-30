@@ -285,9 +285,8 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Number: return "NUMBER";
         case Lex_String: return "STRING";
 
-        case Lex_Invalid:
-        case Lex_EOF:
-            return "[Not Printable]";
+        case Lex_EOF:     return "EOF";
+        case Lex_Invalid: return "INVALID LEXEME";
     }
 }
 

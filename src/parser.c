@@ -1,10 +1,36 @@
 #include "parser.h"
+#include "lexer.h"
+#include <stddef.h>
+#include <stdio.h>
 
+String_View sv_copy(String_View *src, Areno *areno)
+{
+    size_t len  = src->len;
+    char *items = (char *) areno_alloc(areno, len);
+    memccpy(items, src->items, 0, len);
+
+    return (String_View) {
+        .len   = len,
+        .items = items,
+    };
+}
 
 Token parser_peek(Parser *parser)
 {
     return parser->tokens[parser->cursor];
 }
+Token parser_lookahead(Parser *parser, size_t nb)
+{
+    for (size_t i = 0; i <= nb; i++) {
+        if ((parser->tokens[parser->cursor + i]).kind == Lex_EOF) {
+            return (Token) {
+                .kind = Lex_EOF
+            };
+        }
+    }
+    return parser->tokens[parser->cursor + nb];
+}
+
 void parser_advance(Parser *parser)
 {
     if (parser_peek(parser).kind == Lex_EOF) return;
@@ -13,8 +39,7 @@ void parser_advance(Parser *parser)
 
 int parser_match_imp(Parser *parser, Lexeme lexeme)
 {
-    Token current = parser->tokens[parser->cursor];
-    if (current.kind == lexeme) {
+    if (parser_peek(parser).kind == lexeme) {
         parser_advance(parser);
         return 1;
     }
@@ -39,14 +64,85 @@ Token match(Parser *parser, ...)
 void parser_expect(Parser *parser, Lexeme lexeme)
 {
     if (parser_match(parser, lexeme).kind == Lex_Invalid) {
-        assert(0 && "Exepcted failed");
+        printf("Expected '%s', got '%s'\n",
+                lex_print(lexeme),
+                lex_print(parser_peek(parser).kind));
+        assert(0 && "Exepected failed");
     }
 }
 
-Expr *parse_expression(Parser *parser, Areno *areno)
+Node *parser_parse(Parser *parser, Areno *areno)
 {
-    Expr *expr = parse_addition(parser, areno);
-    return expr;
+    Node *root = (Node*) areno_alloc(areno, sizeof(Node));
+    root->kind = NodeKind_Block;
+    root->statements = (Node_Block) {
+        .count = 0,
+        .items = (Node*) areno_alloc(areno, sizeof(Node) * 1024),
+    };
+
+    Token current;
+    while ((current = parser_peek(parser)).kind != Lex_EOF) {
+        printf("[DEBUG] Parsing: %s %zu:%zu\n", lex_print(current.kind), current.row, current.col);
+        if (current.kind == Lex_Ident) {
+            Token next = parser_lookahead(parser, 1);
+            if (next.kind == Lex_Equal) {
+                // x = ...; -- reassign
+                Node *node = parse_assignation(parser, areno);
+                root->statements.items[root->statements.count++] = *node;
+            } else if (next.kind == Lex_Open_bracket) {
+                // fn(); -- function call
+                assert(0 && "[TODO] parse function call");
+            } else if (next.kind == Lex_Colon_Colon) {
+                // fn :: (): type {} -- function definition
+                assert(0 && "[TODO] parse function def");
+            } else {
+                // maybe an expr ?
+                Node *expr = parse_expression(parser, areno);
+                root->statements.items[root->statements.count++] = *expr;
+            }
+        } else if (current.kind == Lex_let) {
+            // let x = ...;
+            Node *node = parse_assignation(parser, areno);
+            root->statements.items[root->statements.count++] = *node;
+        } else { // ...
+            Node *expr = parse_expression(parser, areno);
+            root->statements.items[root->statements.count++] = *expr;
+        }
+
+    }
+    printf("[DEBUG] end parsing, %zu statements\n", root->statements.count);
+
+    return root;
+}
+
+Node *parse_assignation(Parser *parser, Areno *areno)
+{
+    parser_match(parser, Lex_let);
+    Token ident = parser_peek(parser);
+    parser_advance(parser);
+    assert(ident.kind == Lex_Ident && "Expected Identifier");
+
+    parser_expect(parser, Lex_Equal);
+    Node *expr = parse_expression(parser, areno);
+
+    Node *node = (Node*) areno_alloc(areno, sizeof(Node));
+    node->kind = NodeKind_Assignation;
+    node->assignement = (Node_Assignement) {
+        .ident = sv_copy(&ident.ident, areno),
+        .value = &expr->expression,
+    };
+
+    parser_expect(parser, Lex_Semicolon);
+
+    return node;
+}
+
+Node *parse_expression(Parser *parser, Areno *areno)
+{
+    Node *node = (Node*) areno_alloc(areno, sizeof(Node));
+    node->kind = NodeKind_Expression;
+    node->expression = *parse_addition(parser, areno);
+    return node;
 }
 
 Expr *parse_addition(Parser *parser, Areno *areno)
@@ -109,21 +205,14 @@ Expr *parse_terminal(Parser *parser, Areno *areno)
         }
         case Lex_Ident: {
             expr->kind  = Expr_Ident;
-
-            size_t len  = current.string.len;
-            char *ident = (char *) areno_alloc(areno, len);
-            memccpy(ident, current.string.items, 0, len);
-            expr->ident = (String_View) {
-                .items = ident,
-                .len   = len,
-            };
+            expr->ident = sv_copy(&current.string, areno);
 
             parser_advance(parser);
             break;
         }
         case Lex_Open_bracket: { // ( expr )
             parser_expect(parser, Lex_Open_bracket);
-            expr = parse_expression(parser, areno);
+            expr = &parse_expression(parser, areno)->expression;
             parser_expect(parser, Lex_Close_bracket);
             break;
         }
@@ -133,6 +222,34 @@ Expr *parse_terminal(Parser *parser, Areno *areno)
             break;
     }
     return expr;
+}
+
+void dump_node(Node *node, int level)
+{
+    switch (node->kind) {
+        case NodeKind_Block: {
+            for (size_t i = 0; i < node->statements.count; i++) {
+                dump_node(&node->statements.items[i], level);
+            }
+        } break;
+        case NodeKind_Expression: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Expr:\n");
+            dump_expression(&node->expression, level + 1);
+        } break;
+        case NodeKind_Assignation: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Assignation:\n");
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Name: %*s\n", (int)node->assignement.ident.len, node->assignement.ident.items);
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Value:\n");
+            dump_expression(node->assignement.value, level + 2);
+
+        } break;
+    }
 }
 
 void dump_expression (Expr *expr, int level)

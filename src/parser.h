@@ -15,11 +15,6 @@ typedef struct {
     size_t cursor;
 } Parser;
 
-Token parser_peek   (Parser *parser);
-void  parser_advance(Parser *parser);
-int   parser_match  (Parser *parser, Lexeme lexeme);
-void  parser_expect (Parser *parser, Lexeme lexeme);
-
 typedef struct Expr      Expr;
 
 typedef enum {
@@ -59,15 +54,67 @@ struct Expr {
     };
 };
 
+typedef enum {
+    NodeKind_Invalid = 0,
 
-Expr *parse_expression(Parser *parser, Areno *areno);
-Expr *parse_addition  (Parser *parser, Areno *areno);
-Expr *parse_mul       (Parser *parser, Areno *areno);
-Expr *parse_terminal  (Parser *parser, Areno *areno);
+    NodeKind_Block,
 
-Token parser_peek(Parser *parser);
+    NodeKind_Expression,
+    NodeKind_Assignation,
+    NodeKind_If,
+    NodeKind_while,
+
+    NodeKind_LastNode,
+} Node_Kind;
+
+typedef struct Node Node;
+
+typedef struct {
+    Node  *items;
+    size_t count;
+} Node_Block;
+
+typedef struct {
+    Expr        *comparison;
+    Node_Block *if_block;
+    Node_Block *else_block;
+} Node_If;
+
+typedef struct {
+    Expr        *comparison;
+    Node_Block *block;
+} Node_While;
+
+typedef struct {
+    String_View ident;
+    Expr       *value;
+} Node_Assignement;
+
+struct Node {
+    Node_Kind kind;
+    union {
+        Expr             expression;
+        Node_If          node_if;
+        Node_While       node_while;
+        Node_Block      statements;
+        Node_Assignement assignement;
+    };
+};
+
+
+Node *parse_assignation(Parser *parser, Areno *areno);
+Node *parse_expression (Parser *parser, Areno *areno);
+
+Expr *parse_addition   (Parser *parser, Areno *areno);
+Expr *parse_mul        (Parser *parser, Areno *areno);
+Expr *parse_terminal   (Parser *parser, Areno *areno);
+
+Node *parser_parse  (Parser *parser, Areno *areno);
+
+Token parser_peek   (Parser *parser);
 void  parser_advance(Parser *parser);
-void  parser_expect(Parser *parser, Lexeme lexeme);
+int   parser_match  (Parser *parser, Lexeme lexeme);
+void  parser_expect (Parser *parser, Lexeme lexeme);
 
 // Do not use, use the variadic macro who appends the Lex_Invalid Lexeme
 // @returns {Token}, Token of kind Lex_Invalid if not found
@@ -75,5 +122,6 @@ Token match(Parser *parser, ...);
 #define parser_match(...) match(__VA_ARGS__, Lex_Invalid)
 
 void  dump_expression (Expr *expr, int level);
+void  dump_node(Node *node, int level);
 
 #endif //PARSER_H_
