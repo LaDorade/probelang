@@ -123,8 +123,8 @@ Node  parse_terminal   (Parser *parser, Areno *areno);
 Node  parser_parse  (Parser *parser, Areno *areno);
 
 Token parser_peek   (Parser *parser);
+Token parser_prev   (Parser *parser);
 void  parser_advance(Parser *parser);
-int   parser_match  (Parser *parser, Lexeme lexeme);
 void  parser_expect (Parser *parser, Lexeme lexeme);
 
 // Do not use, use the variadic macro who appends the Lex_Invalid Lexeme

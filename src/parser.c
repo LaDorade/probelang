@@ -22,6 +22,15 @@ Token parser_peek(Parser *parser)
 {
     return parser->tokens[parser->cursor];
 }
+Token parser_prev(Parser *parser)
+{
+    if (parser->cursor <= 0) {
+        return (Token) {
+            .kind = Lex_Invalid,
+        };
+    }
+    return parser->tokens[parser->cursor - 1];
+}
 Token parser_lookahead(Parser *parser, size_t nb)
 {
     for (size_t i = 0; i <= nb; i++) {
@@ -67,9 +76,14 @@ Token match(Parser *parser, ...)
 void parser_expect(Parser *parser, Lexeme lexeme)
 {
     if (parser_match(parser, lexeme).kind == Lex_Invalid) {
-        printf("Expected '%s', got '%s'\n",
+        Token current = parser_peek(parser);
+        Token prev    = parser_prev(parser);
+        printf("Expected '%s' after '%s' at %zu:%zu, got '%s'\n",
                 lex_print(lexeme),
-                lex_print(parser_peek(parser).kind));
+                lex_print(prev.kind),
+                prev.row,
+                prev.col,
+                lex_print(current.kind));
         assert(0 && "Exepected failed");
     }
 }
@@ -115,6 +129,7 @@ Node parser_parse(Parser *parser, Areno *areno)
         } else { // ...
             Node expr = parse_expression(parser, areno);
             root.statements.items[root.statements.count++] = expr;
+            parser_match(parser, Lex_Semicolon);
         }
 
     }
@@ -127,8 +142,7 @@ Node parse_assignation(Parser *parser, Areno *areno)
 {
     parser_match(parser, Lex_let);
     Token ident = parser_peek(parser);
-    parser_advance(parser);
-    assert(ident.kind == Lex_Ident && "Expected Identifier");
+    parser_expect(parser, Lex_Ident);
 
     parser_expect(parser, Lex_Equal);
     Node expr = parse_expression(parser, areno);
