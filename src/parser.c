@@ -3,6 +3,9 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#define MAX_ARGS 10
+#define BUF_SIZE 1024
+
 String_View sv_copy(String_View *src, Areno *areno)
 {
     size_t len  = src->len;
@@ -71,51 +74,56 @@ void parser_expect(Parser *parser, Lexeme lexeme)
     }
 }
 
-Node *parser_parse(Parser *parser, Areno *areno)
+//////////////////////////////////////////////////////////
+
+Node parser_parse(Parser *parser, Areno *areno)
 {
-    Node *root = (Node*) areno_alloc(areno, sizeof(Node));
-    root->kind = NodeKind_Block;
-    root->statements = (Node_Block) {
-        .count = 0,
-        .items = (Node*) areno_alloc(areno, sizeof(Node) * 1024),
+    Node root = (Node) {
+        .kind = NodeKind_Block,
+        .statements = (Node_Block) {
+            .count = 0,
+            .items = (Node*) areno_alloc(areno, sizeof(Node) * BUF_SIZE),
+        },
     };
 
     Token current;
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
-        printf("[DEBUG] Parsing: %s %zu:%zu\n", lex_print(current.kind), current.row, current.col);
         if (current.kind == Lex_Ident) {
             Token next = parser_lookahead(parser, 1);
             if (next.kind == Lex_Equal) {
                 // x = ...; -- reassign
-                Node *node = parse_assignation(parser, areno);
-                root->statements.items[root->statements.count++] = *node;
+                Node node = parse_assignation(parser, areno);
+                root.statements.items[root.statements.count++] = node;
             } else if (next.kind == Lex_Open_bracket) {
-                // fn(); -- function call
-                assert(0 && "[TODO] parse function call");
+                // fn(); -- function call -> expression
+                Node node = parse_expression(parser, areno);
+                root.statements.items[root.statements.count++] = node;
+                // to allow call of funciton raw like "printf(...);"
+                parser_match(parser, Lex_Semicolon);
             } else if (next.kind == Lex_Colon_Colon) {
                 // fn :: (): type {} -- function definition
                 assert(0 && "[TODO] parse function def");
             } else {
                 // maybe an expr ?
-                Node *expr = parse_expression(parser, areno);
-                root->statements.items[root->statements.count++] = *expr;
+                Node expr = parse_expression(parser, areno);
+                root.statements.items[root.statements.count++] = expr;
             }
         } else if (current.kind == Lex_let) {
             // let x = ...;
-            Node *node = parse_assignation(parser, areno);
-            root->statements.items[root->statements.count++] = *node;
+            Node node = parse_assignation(parser, areno);
+            root.statements.items[root.statements.count++] = node;
         } else { // ...
-            Node *expr = parse_expression(parser, areno);
-            root->statements.items[root->statements.count++] = *expr;
+            Node expr = parse_expression(parser, areno);
+            root.statements.items[root.statements.count++] = expr;
         }
 
     }
-    printf("[DEBUG] end parsing, %zu statements\n", root->statements.count);
+    printf("[DEBUG] end parsing, %zu statements\n", root.statements.count);
 
     return root;
 }
 
-Node *parse_assignation(Parser *parser, Areno *areno)
+Node parse_assignation(Parser *parser, Areno *areno)
 {
     parser_match(parser, Lex_let);
     Token ident = parser_peek(parser);
@@ -123,105 +131,172 @@ Node *parse_assignation(Parser *parser, Areno *areno)
     assert(ident.kind == Lex_Ident && "Expected Identifier");
 
     parser_expect(parser, Lex_Equal);
-    Node *expr = parse_expression(parser, areno);
+    Node expr = parse_expression(parser, areno);
 
-    Node *node = (Node*) areno_alloc(areno, sizeof(Node));
-    node->kind = NodeKind_Assignation;
-    node->assignement = (Node_Assignement) {
-        .ident = sv_copy(&ident.ident, areno),
-        .value = &expr->expression,
+    Node node = (Node) {
+        .kind = NodeKind_Assignation,
+        .assignement = (Node_Assignement) {
+            .ident = sv_copy(&ident.ident, areno),
+            .value = expr.expression,
+        },
     };
 
-    parser_expect(parser, Lex_Semicolon);
+    parser_match(parser, Lex_Semicolon);
 
     return node;
 }
 
-Node *parse_expression(Parser *parser, Areno *areno)
+Node parse_expression(Parser *parser, Areno *areno)
 {
-    Node *node = (Node*) areno_alloc(areno, sizeof(Node));
-    node->kind = NodeKind_Expression;
-    node->expression = *parse_addition(parser, areno);
-    return node;
+    return parse_addition(parser, areno);
 }
 
-Expr *parse_addition(Parser *parser, Areno *areno)
+Node parse_addition(Parser *parser, Areno *areno)
 {
-    Expr *lhs = parse_mul(parser, areno);
+    Node lhs = parse_mul(parser, areno);
 
     Token current;
     while ((current = parser_match(parser, Lex_Plus, Lex_Minus)).kind != Lex_Invalid) {
-        Expr *rhs = parse_mul(parser, areno);
+        Node rhs = parse_mul(parser, areno);
 
-        Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
-
-        expr->kind      = Expr_Binary;
-        expr->binary_op = (Binary_Op) {
-            .lhs     = lhs,
-            .rhs     = rhs,
-            .operand = current.kind,
+        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
+        *binop = (Expr) {
+            .kind = Expr_Binary,
+            .binary_op = (Binary_Op) {
+                .lhs     = lhs,
+                .rhs     = rhs,
+                .operand = current.kind,
+            }
+        };
+        Node add = (Node) {
+            .kind = NodeKind_Expression,
+            .expression = binop,
         };
 
-        lhs = expr;
+        lhs = add;
     }
     return lhs;
 }
 
-Expr *parse_mul(Parser *parser, Areno *areno)
+Node parse_mul(Parser *parser, Areno *areno)
 {
-    Expr *lhs = parse_terminal(parser, areno);
+    Node lhs = parse_terminal(parser, areno);
 
     Token current;
     while ((current = parser_match(parser, Lex_Mul, Lex_Divide, Lex_Modulo)).kind != Lex_Invalid) {
-        Expr *rhs = parse_terminal(parser, areno);
+        Node rhs= parse_terminal(parser, areno);
 
-        Expr *expr      = (Expr *) areno_alloc(areno, sizeof(Expr));
-
-        expr->kind      = Expr_Binary;
-        expr->binary_op = (Binary_Op) {
-            .lhs     = lhs,
-            .rhs     = rhs,
-            .operand = current.kind,
+        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
+        *binop = (Expr) {
+            .kind = Expr_Binary,
+            .binary_op = (Binary_Op) {
+                .lhs     = lhs,
+                .rhs     = rhs,
+                .operand = current.kind,
+            }
         };
-        
-        lhs = expr;
+        Node mul = (Node) {
+            .kind = NodeKind_Expression,
+            .expression = binop,
+        };
+
+        lhs = mul;
     }
     return lhs;
 }
 
-Expr *parse_terminal(Parser *parser, Areno *areno)
+Node parse_terminal(Parser *parser, Areno *areno)
 {
-
-    Expr *expr = (Expr *) areno_alloc(areno, sizeof(Expr));
+    Node node = (Node) {
+        .kind = NodeKind_Expression,
+    };
 
     Token current = parser_peek(parser);
     switch (current.kind) {
-        case Lex_Number: {
-            expr->kind = Expr_Number;
-            expr->number = current.number;
-
-            parser_advance(parser);
-            break;
-        }
         case Lex_Ident: {
-            expr->kind  = Expr_Ident;
-            expr->ident = sv_copy(&current.string, areno);
+            // x(...)
+            if (parser_lookahead(parser, 1).kind == Lex_Open_bracket) {
+                node = parse_funcall(parser, areno);
+                break;
+            }
+
+            Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
+            *expr = (Expr) {
+                .kind  = Expr_Ident,
+                .ident = sv_copy(&current.string, areno)
+            };
+            node.expression = expr;
 
             parser_advance(parser);
-            break;
-        }
+        } break;
+        case Lex_Number: {
+            Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
+            *expr = (Expr) {
+                .kind = Expr_Number,
+                .number = current.number,
+            };
+            node.expression = expr;
+
+            parser_advance(parser);
+        } break;
         case Lex_Open_bracket: { // ( expr )
             parser_expect(parser, Lex_Open_bracket);
-            expr = &parse_expression(parser, areno)->expression;
+            node = parse_expression(parser, areno);
             parser_expect(parser, Lex_Close_bracket);
-            break;
-        }
+        } break;
         default:
-            printf("Error, found lexeme: '%s'\n", lex_print(current.kind));
+            printf("ERROR at %zu:%zu: Expected expression, found: '%s'\n",
+                    current.row,
+                    current.col,
+                    lex_print(current.kind));
             assert(0 && "[TODO] parse_terminal");
-            break;
     }
-    return expr;
+
+    return node;
+}
+
+Node parse_funcall(Parser *parser, Areno *areno)
+{
+    Token function = parser_match(parser, Lex_Ident);
+    assert(function.kind != Lex_Invalid);
+    parser_expect(parser, Lex_Open_bracket);
+
+    Expr *funcall = (Expr*) areno_alloc(areno, sizeof(Expr));
+    *funcall = (Expr) {
+        .kind = Expr_Funcall,
+        .funcall = (Funcall) {
+            .name = sv_copy(&function.string, areno),
+            .args = {
+                .count = 0,
+                .items = areno_alloc(areno, sizeof(Node) * MAX_ARGS),
+            }
+        }
+    };
+
+    Node node = (Node) {
+        .kind = NodeKind_Expression,
+        .expression = funcall,
+    };
+
+    // cas simple: 0 args;
+    if (parser_match(parser, Lex_Close_bracket).kind != Lex_Invalid) {
+        return node;
+    }
+
+    Node arg = parse_expression(parser, areno);
+    funcall->funcall.args.items[funcall->funcall.args.count++] = arg;
+    while (parser_match(parser, Lex_Comma).kind != Lex_Invalid) {
+        // trailing coma
+        if (parser_match(parser, Lex_Close_bracket).kind != Lex_Invalid) {
+            return node;
+        }
+
+        arg = parse_expression(parser, areno);
+        funcall->funcall.args.items[funcall->funcall.args.count++] = arg;
+    }
+
+    parser_expect(parser, Lex_Close_bracket);
+    return node;
 }
 
 void dump_node(Node *node, int level)
@@ -233,9 +308,9 @@ void dump_node(Node *node, int level)
             }
         } break;
         case NodeKind_Expression: {
-            for (int i = 0; i < level; i++) printf(" ");
-            printf("Expr:\n");
-            dump_expression(&node->expression, level + 1);
+            // for (int i = 0; i < level; i++) printf(" ");
+            // printf("Expr:\n");
+            dump_expression(node->expression, level);
         } break;
         case NodeKind_Assignation: {
             for (int i = 0; i < level; i++) printf(" ");
@@ -255,6 +330,23 @@ void dump_node(Node *node, int level)
 void dump_expression (Expr *expr, int level)
 {
     switch (expr->kind) {
+        case Expr_Funcall: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Funcall:\n");
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Name: %*s\n", (int)expr->funcall.name.len, expr->funcall.name.items);
+
+            if (expr->funcall.args.count == 0) {
+                for (int i = 0; i < level + 1; i++) printf(" ");
+                printf("(no arguments)\n");
+            } else {
+                for (size_t i = 0; i < expr->funcall.args.count; i++) {
+                    for (int i = 0; i < level + 1; i++) printf(" ");
+                    printf("Arg %zu\n", i + 1);
+                    dump_node(&expr->funcall.args.items[i], level + 2);
+                }
+            }
+        } break;
         case Expr_Number:
             for (int i = 0; i < level; i++) printf(" ");
             printf("Number: %d\n", expr->number);
@@ -263,12 +355,12 @@ void dump_expression (Expr *expr, int level)
             for (int i = 0; i < level; i++) printf(" ");
             printf("Binary:\n");
 
-            dump_expression(expr->binary_op.lhs, level + 1);
+            dump_node(&expr->binary_op.lhs, level + 1);
 
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Operator: %s\n", lex_print((Lexeme) expr->binary_op.operand));
 
-            dump_expression(expr->binary_op.rhs, level + 1);
+            dump_node(&expr->binary_op.rhs, level + 1);
 
             break;
         case Expr_Ident:

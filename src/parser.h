@@ -15,44 +15,29 @@ typedef struct {
     size_t cursor;
 } Parser;
 
-typedef struct Expr      Expr;
-
-typedef enum {
-    Expr_Invalid = 0,
-
-    // Terminal
-    Expr_Number,
-    Expr_String,
-    Expr_Ident,
-
-    // Ope
-    Expr_Binary,
-    Expr_Unary,
-
-    Expr_LastExpr = Expr_Unary,
-} Expr_Kind;
+typedef struct Expr Expr;
+typedef struct Node Node;
 
 typedef struct {
-    Expr  *expr;
-    Lexeme operand;
-} Unary_Op ;
+    Node  *items;
+    size_t count;
+} Node_Block;
 
 typedef struct {
-    Expr  *lhs;
-    Expr  *rhs;
-    Lexeme operand;
-} Binary_Op;
+    Expr       *comparison;
+    Node_Block *if_block;
+    Node_Block *else_block;
+} Node_If;
 
-struct Expr {
-    Expr_Kind kind;
-    union {
-        int         number;
-        String_View str;
-        String_View ident;
-        Binary_Op   binary_op;
-        Unary_Op    unary_op;
-    };
-};
+typedef struct {
+    Expr       *comparison;
+    Node_Block *block;
+} Node_While;
+
+typedef struct {
+    String_View ident;
+    Expr       *value;
+} Node_Assignement;
 
 typedef enum {
     NodeKind_Invalid = 0,
@@ -67,49 +52,75 @@ typedef enum {
     NodeKind_LastNode,
 } Node_Kind;
 
-typedef struct Node Node;
-
-typedef struct {
-    Node  *items;
-    size_t count;
-} Node_Block;
-
-typedef struct {
-    Expr        *comparison;
-    Node_Block *if_block;
-    Node_Block *else_block;
-} Node_If;
-
-typedef struct {
-    Expr        *comparison;
-    Node_Block *block;
-} Node_While;
-
-typedef struct {
-    String_View ident;
-    Expr       *value;
-} Node_Assignement;
-
 struct Node {
     Node_Kind kind;
     union {
-        Expr             expression;
+        Expr            *expression;
         Node_If          node_if;
         Node_While       node_while;
-        Node_Block      statements;
+        Node_Block       statements;
         Node_Assignement assignement;
     };
 };
 
 
-Node *parse_assignation(Parser *parser, Areno *areno);
-Node *parse_expression (Parser *parser, Areno *areno);
+typedef enum {
+    Expr_Invalid = 0,
 
-Expr *parse_addition   (Parser *parser, Areno *areno);
-Expr *parse_mul        (Parser *parser, Areno *areno);
-Expr *parse_terminal   (Parser *parser, Areno *areno);
+    // Terminal
+    Expr_Number,
+    Expr_String,
+    Expr_Ident,
 
-Node *parser_parse  (Parser *parser, Areno *areno);
+    // Ope
+    Expr_Funcall,
+    Expr_Binary,
+    Expr_Unary,
+
+    Expr_LastExpr = Expr_Unary,
+} Expr_Kind;
+
+typedef struct {
+    Node   expr;
+    Lexeme operand;
+} Unary_Op ;
+
+typedef struct {
+    Node   lhs;
+    Node   rhs;
+    Lexeme operand;
+} Binary_Op;
+
+typedef struct {
+    String_View name;
+    struct {
+        Node  *items;
+        size_t count;
+    } args;
+} Funcall;
+
+struct Expr {
+    Expr_Kind kind;
+    union {
+        String_View str;
+        String_View ident;
+        Binary_Op   binary_op;
+        Unary_Op    unary_op;
+        Funcall     funcall;
+        int         number;
+    };
+};
+
+
+Node  parse_assignation(Parser *parser, Areno *areno);
+Node  parse_expression (Parser *parser, Areno *areno);
+Node  parse_funcall    (Parser *parser, Areno *areno);
+
+Node  parse_addition   (Parser *parser, Areno *areno);
+Node  parse_mul        (Parser *parser, Areno *areno);
+Node  parse_terminal   (Parser *parser, Areno *areno);
+
+Node  parser_parse  (Parser *parser, Areno *areno);
 
 Token parser_peek   (Parser *parser);
 void  parser_advance(Parser *parser);

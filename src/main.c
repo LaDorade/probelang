@@ -12,7 +12,7 @@
 #include "areno.h"
 #include "lexer.h"
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 1024 * 1024
 
 
 int main(void)
@@ -46,7 +46,7 @@ int main(void)
         parser.tokens = tokens,
     };
 
-    Node *prog = parser_parse(&parser, &parse_areno);
-    dump_node(prog, 0);
+    Node prog = parser_parse(&parser, &parse_areno);
+    dump_node(&prog, 0);
     return 0;
 }

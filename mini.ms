@@ -1,10 +1,1 @@
-let x = 43 * 234;
-let y = x + 1;
-
-y
-
-x + 4 - 23 * 23
-
-y = y + 4;
-
-let z = x + y;
+x = y(aled(b), y * 52  , hop(),); let x = 23; x(e) + 1 + 2; print(x, y, e);
