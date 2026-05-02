@@ -48,5 +48,9 @@ int main(void)
 
     Node prog = parser_parse(&parser, &parse_areno);
     dump_node(&prog, 0);
+
+    areno_free(&lex_areno  );
+    areno_free(&parse_areno);
+
     return 0;
 }
