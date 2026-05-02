@@ -1,7 +1,8 @@
-#include "parser.h"
-#include "lexer.h"
 #include <stddef.h>
 #include <stdio.h>
+
+#include "parser.h"
+#include "lexer.h"
 
 #define MAX_ARGS 10
 #define BUF_SIZE 1024
@@ -92,7 +93,14 @@ void parser_expect(Parser *parser, Lexeme lexeme)
 
 Node parser_parse(Parser *parser, Areno *areno)
 {
-    Node root = (Node) {
+    Node program = parse_block(parser, areno);
+    printf("[DEBUG] end parsing, %zu statements\n", program.statements.count);
+    return program;
+}
+
+Node parse_block(Parser *parser, Areno *areno)
+{
+    Node block = (Node) {
         .kind = NodeKind_Block,
         .statements = (Node_Block) {
             .count = 0,
@@ -107,11 +115,11 @@ Node parser_parse(Parser *parser, Areno *areno)
             if (next.kind == Lex_Equal) {
                 // x = ...; -- reassign
                 Node node = parse_assignation(parser, areno);
-                root.statements.items[root.statements.count++] = node;
+                block.statements.items[block.statements.count++] = node;
             } else if (next.kind == Lex_Open_bracket) {
                 // fn(); -- function call -> expression
                 Node node = parse_expression(parser, areno);
-                root.statements.items[root.statements.count++] = node;
+                block.statements.items[block.statements.count++] = node;
                 // to allow call of funciton raw like "printf(...);"
                 parser_match(parser, Lex_Semicolon);
             } else if (next.kind == Lex_Colon_Colon) {
@@ -120,22 +128,20 @@ Node parser_parse(Parser *parser, Areno *areno)
             } else {
                 // maybe an expr ?
                 Node expr = parse_expression(parser, areno);
-                root.statements.items[root.statements.count++] = expr;
+                block.statements.items[block.statements.count++] = expr;
             }
         } else if (current.kind == Lex_let) {
             // let x = ...;
             Node node = parse_assignation(parser, areno);
-            root.statements.items[root.statements.count++] = node;
+            block.statements.items[block.statements.count++] = node;
         } else { // ...
             Node expr = parse_expression(parser, areno);
-            root.statements.items[root.statements.count++] = expr;
+            block.statements.items[block.statements.count++] = expr;
             parser_match(parser, Lex_Semicolon);
         }
-
     }
-    printf("[DEBUG] end parsing, %zu statements\n", root.statements.count);
 
-    return root;
+    return block;
 }
 
 Node parse_assignation(Parser *parser, Areno *areno)
@@ -165,6 +171,7 @@ Node parse_expression(Parser *parser, Areno *areno)
     return parse_addition(parser, areno);
 }
 
+// x + y - 23
 Node parse_addition(Parser *parser, Areno *areno)
 {
     Node lhs = parse_mul(parser, areno);
@@ -192,6 +199,7 @@ Node parse_addition(Parser *parser, Areno *areno)
     return lhs;
 }
 
+// x * y / z % 23
 Node parse_mul(Parser *parser, Areno *areno)
 {
     Node lhs = parse_terminal(parser, areno);
@@ -219,6 +227,7 @@ Node parse_mul(Parser *parser, Areno *areno)
     return lhs;
 }
 
+// x | "snoup" | 223 | ( ... ) | func(...)
 Node parse_terminal(Parser *parser, Areno *areno)
 {
     Node node = (Node) {
@@ -228,16 +237,17 @@ Node parse_terminal(Parser *parser, Areno *areno)
     Token current = parser_peek(parser);
     switch (current.kind) {
         case Lex_Ident: {
-            // x(...)
+            // func(...)
             if (parser_lookahead(parser, 1).kind == Lex_Open_bracket) {
                 node = parse_funcall(parser, areno);
                 break;
             }
 
+            // x
             Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
             *expr = (Expr) {
                 .kind  = Expr_Ident,
-                .ident = sv_copy(&current.string, areno)
+                .ident = sv_copy(&current.ident, areno)
             };
             node.expression = expr;
 
@@ -258,17 +268,29 @@ Node parse_terminal(Parser *parser, Areno *areno)
             node = parse_expression(parser, areno);
             parser_expect(parser, Lex_Close_bracket);
         } break;
+        case Lex_String: {
+            // "snoup"
+            Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
+            *expr = (Expr) {
+                .kind  = Expr_String,
+                .ident = sv_copy(&current.string, areno)
+            };
+            node.expression = expr;
+
+            parser_advance(parser);
+        } break;
         default:
             printf("ERROR at %zu:%zu: Expected expression, found: '%s'\n",
                     current.row,
                     current.col,
                     lex_print(current.kind));
-            assert(0 && "[TODO] parse_terminal");
+            assert(0 && "[TODO] ERROR HANDLING");
     }
 
     return node;
 }
 
+// func(...)
 Node parse_funcall(Parser *parser, Areno *areno)
 {
     Token function = parser_match(parser, Lex_Ident);
@@ -292,24 +314,17 @@ Node parse_funcall(Parser *parser, Areno *areno)
         .expression = funcall,
     };
 
-    // cas simple: 0 args;
-    if (parser_match(parser, Lex_Close_bracket).kind != Lex_Invalid) {
-        return node;
-    }
-
-    Node arg = parse_expression(parser, areno);
-    funcall->funcall.args.items[funcall->funcall.args.count++] = arg;
-    while (parser_match(parser, Lex_Comma).kind != Lex_Invalid) {
-        // trailing coma
-        if (parser_match(parser, Lex_Close_bracket).kind != Lex_Invalid) {
-            return node;
-        }
-
-        arg = parse_expression(parser, areno);
+    while (!parser_match(parser, Lex_Close_bracket).kind) {
+        Node arg = parse_expression(parser, areno);
         funcall->funcall.args.items[funcall->funcall.args.count++] = arg;
+
+        // this allow trailing coma
+        if (!parser_match(parser, Lex_Comma).kind) {
+            parser_expect(parser, Lex_Close_bracket);
+            break;
+        }
     }
 
-    parser_expect(parser, Lex_Close_bracket);
     return node;
 }
 
