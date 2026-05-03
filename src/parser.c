@@ -159,6 +159,9 @@ Node parse_block(Parser *parser, Areno *areno)
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
         if (current.kind == Lex_Close_brace) {
             break;
+        } else if (current.kind == Lex_Open_brace) {
+            Node node = parse_block(parser, areno);
+            block.statements.items[block.statements.count++] = node;
         } else if (current.kind == Lex_Ident) {
             Token next = parser_lookahead(parser, 1);
             if (next.kind == Lex_Equal) {
@@ -426,8 +429,10 @@ void dump_node(Node *node, int level)
         } break;
 
         case NodeKind_Block: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Block:\n");
             for (size_t i = 0; i < node->statements.count; i++) {
-                dump_node(&node->statements.items[i], level);
+                dump_node(&node->statements.items[i], level + 1);
             }
         } break;
 

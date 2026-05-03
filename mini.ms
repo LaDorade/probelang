@@ -1,6 +1,9 @@
 
 main :: () {
     yop("bijour", 32);
+    {
+        let c = 22;
+    }
     bijour :: () {
         let a = 23;
     }
