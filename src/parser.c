@@ -136,9 +136,9 @@ Node parse_funcdef(Parser *parser, Areno *areno)
     return (Node) {
         .kind = NodeKind_Funcdef,
         .funcdef = (Node_Funcdef) {
-            .name = sv_copy(&funcname.ident, areno),
-            .block = body.statements,
-            .args = args
+            .name       = sv_copy(&funcname.ident, areno),
+            .args       = args,
+            .statements = body.statements,
         }
     };
 }
@@ -173,7 +173,8 @@ Node parse_block(Parser *parser, Areno *areno)
                 parser_match(parser, Lex_Semicolon);
             } else if (next.kind == Lex_Colon_Colon) {
                 // fn :: (): type {} -- function definition
-                assert(0 && "[TODO] parse function def");
+                Node node = parse_funcdef(parser, areno);
+                block.statements.items[block.statements.count++] = node;
             } else {
                 // maybe an expr ?
                 Node expr = parse_expression(parser, areno);
@@ -183,6 +184,7 @@ Node parse_block(Parser *parser, Areno *areno)
             // let x = ...;
             Node node = parse_assignation(parser, areno);
             block.statements.items[block.statements.count++] = node;
+            parser_match(parser, Lex_Semicolon);
         } else { // ...
             Node expr = parse_expression(parser, areno);
             block.statements.items[block.statements.count++] = expr;
@@ -212,8 +214,6 @@ Node parse_assignation(Parser *parser, Areno *areno)
             .value = expr.expression,
         },
     };
-
-    parser_match(parser, Lex_Semicolon);
 
     return node;
 }
@@ -345,8 +345,9 @@ Node parse_terminal(Parser *parser, Areno *areno)
 // func(...)
 Node parse_funcall(Parser *parser, Areno *areno)
 {
-    Token function = parser_match(parser, Lex_Ident);
-    assert(function.kind != Lex_Invalid);
+    Token function = parser_peek(parser);
+    parser_expect(parser, Lex_Ident);
+
     parser_expect(parser, Lex_Open_bracket);
 
     Expr *funcall = (Expr*) areno_alloc(areno, sizeof(Expr));
@@ -391,12 +392,12 @@ void dump_node(Node *node, int level)
         case NodeKind_Funcdef: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Function Def:\n");
-
+            // name
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Name: %*s\n",
                     (int)node->funcdef.name.len,
                     node->funcdef.name.items);
-
+            // args
             if (node->funcdef.args.count <= 0) {
                 for (int i = 0; i < level + 2; i++) printf(" ");
                 printf("(no arguments)\n");
@@ -411,11 +412,16 @@ void dump_node(Node *node, int level)
                     printf("Type: %*s\n", (int)arg.type.len, arg.type.items);
                 }
             }
-
+            // body
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Body:\n");
-            for (size_t i = 0; i < node->funcdef.block.count; i++) {
-                dump_node(&node->funcdef.block.items[i], level + 2);
+            if (node->funcdef.statements.count <= 0) {
+                for (int i = 0; i < level + 2; i++) printf(" ");
+                printf("(no body)\n");
+            } else {
+                for (size_t i = 0; i < node->funcdef.statements.count; i++) {
+                    dump_node(&node->funcdef.statements.items[i], level + 2);
+                }
             }
         } break;
 
@@ -426,8 +432,6 @@ void dump_node(Node *node, int level)
         } break;
 
         case NodeKind_Expression: {
-            // for (int i = 0; i < level; i++) printf(" ");
-            // printf("Expr:\n");
             dump_expression(node->expression, level);
         } break;
 
@@ -488,8 +492,11 @@ void dump_expression (Expr *expr, int level)
             for (int i = 0; i < level; i++) printf(" ");
             printf("Ident: %*s\n", (int) expr->ident.len, expr->ident.items);
             break;
-        case Expr_Unary:
         case Expr_String:
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("String: %*s\n", (int) expr->str.len, expr->str.items);
+            break;
+        case Expr_Unary:
         case Expr_Invalid:
             assert(0 && "[TODO] dump_expression");
             break;

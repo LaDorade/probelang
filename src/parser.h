@@ -36,7 +36,7 @@ typedef struct {
 typedef struct {
     String_View name;
     Args        args;
-    Node_Block  block;
+    Node_Block  statements;
 } Node_Funcdef;
 
 typedef struct {
