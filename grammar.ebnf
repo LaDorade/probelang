@@ -1,6 +1,9 @@
 program = { statement } ;
 
-statement = { expression, [ ';' ] | assignation, [ ';' ] };
+statement = { expression, [ ';' ] | assignation, [ ';' ] } ;
+
+block = '{', { statement }, '}' ;
+funcdef = iden, '::', '(', ')', block ;
 
 assignation = 'let', S, ident, {S}, '=', {S}, expression;
 
@@ -14,6 +17,6 @@ funcall    = inden, {S}, '(' { expression } ')'
 
 
 terminal = ident | number | string ;
-ident    = alpha,  {alpha | digit | '_' | '-'} ;
+ident    = alpha, { alpha | digit | '_' | '-' } ;
 number   = [ '-' ], digit, { digit };
 string   = '"',    {any}, '"';

@@ -19,20 +19,25 @@ typedef struct Expr Expr;
 typedef struct Node Node;
 
 typedef struct {
+    String_View name;
+    String_View type;
+} Arg;
+
+typedef struct {
+    Arg   *items;
+    size_t count;
+} Args;
+
+typedef struct {
     Node  *items;
     size_t count;
 } Node_Block;
 
 typedef struct {
-    Expr       *comparison;
-    Node_Block *if_block;
-    Node_Block *else_block;
-} Node_If;
-
-typedef struct {
-    Expr       *comparison;
-    Node_Block *block;
-} Node_While;
+    String_View name;
+    Args        args;
+    Node_Block  block;
+} Node_Funcdef;
 
 typedef struct {
     String_View ident;
@@ -42,12 +47,11 @@ typedef struct {
 typedef enum {
     NodeKind_Invalid = 0,
 
+    NodeKind_Funcdef,
     NodeKind_Block,
 
     NodeKind_Expression,
     NodeKind_Assignation,
-    NodeKind_If,
-    NodeKind_while,
 
     NodeKind_LastNode,
 } Node_Kind;
@@ -56,9 +60,8 @@ struct Node {
     Node_Kind kind;
     union {
         Expr            *expression;
-        Node_If          node_if;
-        Node_While       node_while;
         Node_Block       statements;
+        Node_Funcdef     funcdef;
         Node_Assignement assignement;
     };
 };
@@ -112,6 +115,7 @@ struct Expr {
 };
 
 
+Node  parse_funcdef    (Parser *parser, Areno *areno);
 Node  parse_block      (Parser *parser, Areno *areno);
 Node  parse_assignation(Parser *parser, Areno *areno);
 Node  parse_expression (Parser *parser, Areno *areno);
