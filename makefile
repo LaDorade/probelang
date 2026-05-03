@@ -3,6 +3,11 @@ FLAGS    = -fsanitize=address
 
 all: main
 
+run: main
+	./main
+
+.PHONY: run
+
 main: ./src/main.c lexer.o parser.o
 	$(CC) $(FLAGS) $(INCLUDES) ./src/main.c parser.o lexer.o -o main
 
