@@ -41,7 +41,8 @@ typedef struct {
 
 typedef struct {
     String_View ident;
-    Expr       *value;
+    Node       *value; // expression or block
+                       // sem analysis will check if block ok
 } Node_Assignement;
 
 typedef enum {

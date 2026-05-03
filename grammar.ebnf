@@ -5,7 +5,7 @@ statement = { expression, [ ';' ] | assignation, [ ';' ] } ;
 block = '{', { statement }, '}' ;
 funcdef = iden, '::', '(', ')', block ;
 
-assignation = 'let', S, ident, {S}, '=', {S}, expression;
+assignation = [ 'let' ], ident, '=', expression | block;
 
 # Expressions (lower have priority)
 expression = equality

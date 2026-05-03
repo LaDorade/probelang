@@ -160,6 +160,7 @@ Node parse_block(Parser *parser, Areno *areno)
         if (current.kind == Lex_Close_brace) {
             break;
         } else if (current.kind == Lex_Open_brace) {
+            // { ... } -- block
             Node node = parse_block(parser, areno);
             block.statements.items[block.statements.count++] = node;
         } else if (current.kind == Lex_Ident) {
@@ -168,20 +169,18 @@ Node parse_block(Parser *parser, Areno *areno)
                 // x = ...; -- reassign
                 Node node = parse_assignation(parser, areno);
                 block.statements.items[block.statements.count++] = node;
-            } else if (next.kind == Lex_Open_bracket) {
-                // fn(); -- function call -> expression
-                Node node = parse_expression(parser, areno);
-                block.statements.items[block.statements.count++] = node;
-                // to allow call of funciton raw like "printf(...);"
                 parser_match(parser, Lex_Semicolon);
             } else if (next.kind == Lex_Colon_Colon) {
                 // fn :: (): type {} -- function definition
                 Node node = parse_funcdef(parser, areno);
                 block.statements.items[block.statements.count++] = node;
             } else {
-                // maybe an expr ?
+                // expr or funcall
                 Node expr = parse_expression(parser, areno);
                 block.statements.items[block.statements.count++] = expr;
+                // to allow call of funciton raw like "printf(...);"
+                // or just raw expressions
+                parser_match(parser, Lex_Semicolon);
             }
         } else if (current.kind == Lex_let) {
             // let x = ...;
@@ -201,20 +200,29 @@ Node parse_block(Parser *parser, Areno *areno)
     return block;
 }
 
+// assignation = [ 'let' ] ident '=' expression | block
+// [let] x = ... [;] | [let] x = { ... }
 Node parse_assignation(Parser *parser, Areno *areno)
 {
     parser_match(parser, Lex_let);
     Token ident = parser_peek(parser);
     parser_expect(parser, Lex_Ident);
-
     parser_expect(parser, Lex_Equal);
-    Node expr = parse_expression(parser, areno);
+
+    Node *expr = areno_alloc(areno, sizeof(Node));
+
+    // parse as block
+    if (parser_peek(parser).kind == Lex_Open_brace) {
+        *expr = parse_block(parser, areno);
+    } else { // parse as expression
+        *expr = parse_expression(parser, areno);
+    }
 
     Node node = (Node) {
         .kind = NodeKind_Assignation,
         .assignement = (Node_Assignement) {
             .ident = sv_copy(&ident.ident, areno),
-            .value = expr.expression,
+            .value = expr,
         },
     };
 
@@ -451,7 +459,7 @@ void dump_node(Node *node, int level)
 
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Value:\n");
-            dump_expression(node->assignement.value, level + 2);
+            dump_node(node->assignement.value, level + 2);
         } break;
 
     }

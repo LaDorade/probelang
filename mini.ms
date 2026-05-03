@@ -3,7 +3,6 @@ main :: () {
     yop("bijour", 32);
     let y = {
         let c = 22;
-        local return c;
     }
     bijour :: () {
         let a = 23;
