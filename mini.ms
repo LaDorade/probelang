@@ -5,14 +5,7 @@ main :: () {
         let c = 22;
     }
     bijour :: () {
-        let a = 23;
-        return {
-            let b = 32;
-            if (b < 30) {
-                local reject;
-            }
-            local return b + a;
-        }
+        let a = 23 == x;
     }
     let b = 23;
 }

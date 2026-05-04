@@ -118,10 +118,11 @@ struct Expr {
 
 Node  parse_funcdef    (Parser *parser, Areno *areno);
 Node  parse_block      (Parser *parser, Areno *areno);
-Node  parse_assignation(Parser *parser, Areno *areno);
-Node  parse_expression (Parser *parser, Areno *areno);
 Node  parse_funcall    (Parser *parser, Areno *areno);
+Node  parse_expression (Parser *parser, Areno *areno);
+Node  parse_assignation(Parser *parser, Areno *areno);
 
+Node  parse_comparaison(Parser *parser, Areno *areno);
 Node  parse_addition   (Parser *parser, Areno *areno);
 Node  parse_mul        (Parser *parser, Areno *areno);
 Node  parse_terminal   (Parser *parser, Areno *areno);

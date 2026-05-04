@@ -239,7 +239,39 @@ Node parse_assignation(Parser *parser, Areno *areno)
 
 Node parse_expression(Parser *parser, Areno *areno)
 {
-    return parse_addition(parser, areno);
+    return parse_comparaison(parser, areno);
+}
+
+// x == y >= z
+Node parse_comparaison(Parser *parser, Areno *areno)
+{
+    Node lhs = parse_addition(parser, areno);
+
+    Token current;
+    while ((current = parser_match(parser,
+            Lex_Equal_Equal, Lex_Not_Equal,
+            Lex_Greater_Equal, Lex_Lower_Equal)
+        ).kind != Lex_Invalid)
+    {
+        Node rhs = parse_addition(parser, areno);
+
+        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
+        *binop = (Expr) {
+            .kind = Expr_Binary,
+            .binary_op = (Binary_Op) {
+                .lhs     = lhs,
+                .rhs     = rhs,
+                .operand = current.kind,
+            }
+        };
+        Node add = (Node) {
+            .kind = NodeKind_Expression,
+            .expression = binop,
+        };
+
+        lhs = add;
+    }
+    return lhs;
 }
 
 // x + y - 23
