@@ -26,7 +26,7 @@ int main(void)
 
     char buf[BUF_SIZE];
     memset(buf, 0, sizeof(buf));
-    unsigned long n = fread(buf, 1, BUF_SIZE, file);
+    fread(buf, 1, BUF_SIZE, file);
     if (ferror(file)) {
         printf("Error while reading file at path: %s\n", path);
         return 1;
@@ -43,7 +43,8 @@ int main(void)
     Token* tokens = lexer_lex(&lexer, &lex_areno);
 
     Parser parser = (Parser) {
-        parser.tokens = tokens,
+        .tokens = tokens,
+        .cursor = 0,
     };
 
     Node prog = parser_parse(&parser, &parse_areno);

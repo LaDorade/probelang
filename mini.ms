@@ -6,6 +6,13 @@ main :: () {
     }
     bijour :: () {
         let a = 23;
+        return {
+            let b = 32;
+            if (b < 30) {
+                local reject;
+            }
+            local return b + a;
+        }
     }
     let b = 23;
 }

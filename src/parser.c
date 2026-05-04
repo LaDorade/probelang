@@ -159,14 +159,12 @@ Node parse_block(Parser *parser, Areno *areno)
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
         if (current.kind == Lex_Close_brace) {
             break;
-        } else if (current.kind == Lex_Open_brace) {
-            // { ... } -- block
+        } else if (current.kind == Lex_Open_brace) { // { ... } -- block
             Node node = parse_block(parser, areno);
             block.statements.items[block.statements.count++] = node;
         } else if (current.kind == Lex_Ident) {
             Token next = parser_lookahead(parser, 1);
-            if (next.kind == Lex_Equal) {
-                // x = ...; -- reassign
+            if (next.kind == Lex_Equal) { // x = ...; -- reassign
                 Node node = parse_assignation(parser, areno);
                 block.statements.items[block.statements.count++] = node;
                 parser_match(parser, Lex_Semicolon);
@@ -174,19 +172,22 @@ Node parse_block(Parser *parser, Areno *areno)
                 // fn :: (): type {} -- function definition
                 Node node = parse_funcdef(parser, areno);
                 block.statements.items[block.statements.count++] = node;
-            } else {
-                // expr or funcall
+            } else { // expr or funcall
                 Node expr = parse_expression(parser, areno);
                 block.statements.items[block.statements.count++] = expr;
                 // to allow call of funciton raw like "printf(...);"
                 // or just raw expressions
                 parser_match(parser, Lex_Semicolon);
             }
-        } else if (current.kind == Lex_let) {
-            // let x = ...;
+        } else if (current.kind == Lex_let) { // let x = ...;
             Node node = parse_assignation(parser, areno);
             block.statements.items[block.statements.count++] = node;
             parser_match(parser, Lex_Semicolon);
+        } else if (current.kind == Lex_return // return ...
+            || current.kind == Lex_reject
+            || current.kind == Lex_local
+        ) {
+            parser_expect(parser, Lex_Invalid);
         } else { // ...
             Node expr = parse_expression(parser, areno);
             block.statements.items[block.statements.count++] = expr;
@@ -198,6 +199,13 @@ Node parse_block(Parser *parser, Areno *areno)
     printf("[DEBUG] Parsed a block, %zu statements\n", block.statements.count);
 
     return block;
+}
+
+Node parse_return(Parser *parser, Areno *areno)
+{
+    (void)parser;
+    (void)areno;
+    return (Node) {0};
 }
 
 // assignation = [ 'let' ] ident '=' expression | block

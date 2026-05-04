@@ -1,5 +1,5 @@
 INCLUDES = -I./include
-FLAGS    = -fsanitize=address
+FLAGS    = -ggdb -Wall -Wextra -Werror
 
 all: main
 
