@@ -288,6 +288,8 @@ const char* lex_print(Lexeme lexeme)
         case Lex_EOF:     return "EOF";
         case Lex_Invalid: return "INVALID LEXEME";
     }
+    assert("UNREACHABLE");
+    return "UNREACHABLE";
 }
 
 char *str_printf(Areno *areno, const char *fmt, ...) {

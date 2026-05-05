@@ -1,8 +1,9 @@
 #ifndef  PARSER_H_
 #define  PARSER_H_
 
-#include <stdarg.h>
 #include <assert.h>
+#include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -125,6 +126,7 @@ Node  parse_assignation(Parser *parser, Areno *areno);
 Node  parse_comparaison(Parser *parser, Areno *areno);
 Node  parse_addition   (Parser *parser, Areno *areno);
 Node  parse_mul        (Parser *parser, Areno *areno);
+Node  parse_unary      (Parser *parser, Areno *areno);
 Node  parse_terminal   (Parser *parser, Areno *areno);
 
 Node  parser_parse  (Parser *parser, Areno *areno);

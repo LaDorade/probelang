@@ -305,11 +305,11 @@ Node parse_addition(Parser *parser, Areno *areno)
 // x * y / z % 23
 Node parse_mul(Parser *parser, Areno *areno)
 {
-    Node lhs = parse_terminal(parser, areno);
+    Node lhs = parse_unary(parser, areno);
 
     Token current;
     while ((current = parser_match(parser, Lex_Mul, Lex_Divide, Lex_Modulo)).kind != Lex_Invalid) {
-        Node rhs= parse_terminal(parser, areno);
+        Node rhs= parse_unary(parser, areno);
 
         Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
         *binop = (Expr) {
@@ -328,6 +328,43 @@ Node parse_mul(Parser *parser, Areno *areno)
         lhs = mul;
     }
     return lhs;
+}
+
+// -x | !y
+Node parse_unary(Parser *parser, Areno *areno)
+{
+    Node node = (Node) {
+        .kind = NodeKind_Expression,
+    };
+
+    Token current = parser_peek(parser);
+    if (current.kind == Lex_Minus) {
+        parser_expect(parser, Lex_Minus);
+        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
+        *expr = (Expr) {
+            .kind  = Expr_Unary,
+            .unary_op = {
+                .operand = Lex_Minus,
+                .expr = parse_unary(parser, areno),
+            },
+        };
+        node.expression = expr;
+    } else if (current.kind == Lex_Bang) {
+        parser_expect(parser, Lex_Bang);
+        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
+        *expr = (Expr) {
+            .kind  = Expr_Unary,
+            .unary_op = {
+                .operand = Lex_Bang,
+                .expr = parse_unary(parser, areno),
+            },
+        };
+        node.expression = expr;
+    } else {
+        node = parse_terminal(parser, areno);
+    }
+
+    return node;
 }
 
 // x | "snoup" | 223 | ( ... ) | func(...)
@@ -550,6 +587,15 @@ void dump_expression (Expr *expr, int level)
             printf("String: %*s\n", (int) expr->str.len, expr->str.items);
             break;
         case Expr_Unary:
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Unary:\n");
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Operator: %s\n", lex_print((Lexeme) expr->unary_op.operand));
+
+            dump_node(&expr->unary_op.expr, level + 1);
+
+            break;
         case Expr_Invalid:
             assert(0 && "[TODO] dump_expression");
             break;
