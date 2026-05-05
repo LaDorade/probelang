@@ -93,7 +93,19 @@ void parser_expect(Parser *parser, Lexeme lexeme)
 
 Node parser_parse(Parser *parser, Areno *areno)
 {
-    Node program = parse_funcdef(parser, areno);
+    Node program = (Node) {
+        .kind = NodeKind_Block,
+        .statements = (Node_Block) {
+            .count = 0,
+            .items = (Node*) areno_alloc(areno, sizeof(Node) * BUF_SIZE),
+        },
+    };
+
+    Token current;
+    while ((current = parser_peek(parser)).kind != Lex_EOF) {
+        Node func = parse_funcdef(parser, areno);
+        program.statements.items[program.statements.count++] = func;
+    }
     return program;
 }
 
@@ -156,7 +168,7 @@ Node parse_block(Parser *parser, Areno *areno)
     };
 
     Token current;
-    while ((current = parser_peek(parser)).kind != Lex_EOF) {
+    while ((current = parser_peek(parser)).kind != Lex_Close_brace) {
         if (current.kind == Lex_Close_brace) {
             break;
         } else if (current.kind == Lex_Open_brace) { // { ... } -- block
