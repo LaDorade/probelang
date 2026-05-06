@@ -12,7 +12,7 @@
 
 typedef struct {
     Token *tokens;
-
+    Lexer  lexer;
     size_t cursor;
 } Parser;
 
@@ -37,8 +37,13 @@ typedef struct {
 typedef struct {
     String_View name;
     Args        args;
-    Node_Block  statements;
+    Node       *statements;
 } Node_Funcdef;
+
+typedef struct {
+    Node *condition; // expression
+    Node *block; // 1 statement or block
+} Node_If;
 
 typedef struct {
     String_View ident;

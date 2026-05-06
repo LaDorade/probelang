@@ -36,19 +36,22 @@ int main(void)
     Areno parse_areno = {0};
 
     Lexer lexer = (Lexer) {
-        .items  = buf,
+        .sv = (String_View) {
+            .items = buf,
+            .len   = strlen(buf),
+        },
         .cursor = 0,
-        .count  = strlen(buf),
     };
     Token* tokens = lexer_lex(&lexer, &lex_areno);
 
     Parser parser = (Parser) {
+        .lexer  = lexer,
         .tokens = tokens,
         .cursor = 0,
     };
 
     Node prog = parser_parse(&parser, &parse_areno);
-    dump_node(&prog, 0);
+    // dump_node(&prog, 0);
 
     areno_free(&lex_areno  );
     areno_free(&parse_areno);

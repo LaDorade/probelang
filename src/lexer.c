@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -15,7 +16,7 @@
 char lex_peek(const Lexer *lex)
 {
     if (lex->eof) return 0;
-    return lex->items[lex->cursor];
+    return lex->sv.items[lex->cursor];
 }
 
 void lex_advance(Lexer *lex)
@@ -27,21 +28,21 @@ void lex_advance(Lexer *lex)
         lex->col += 1;
     }
 
-    if (lex->cursor >= lex->count) {
-        lex->eof = 1;
+    if (lex->cursor >= lex->sv.len) {
+        lex->eof = true;
         return;
     }
     lex->cursor += 1;
 }
 
-int lex_match(Lexer *lex, char c)
+bool lex_match(Lexer *lex, char c)
 {
     if (lex_peek(lex) == c)
     {
         lex_advance(lex);
-        return 1;
+        return true;
     }
-    return 0;
+    return false;
 }
 
 // Start the lexer, reset cursor, col & row
@@ -319,7 +320,7 @@ char *token_print(const Token *tok, Areno *areno)
 {
     const char *lexeme = lex_print(tok->kind);
     char *str = NULL;
-    const char *string_format  = "%s: '%*s'";
+    const char *string_format  = "%s: '%.*s'";
     const char *number_format  = "%s: '%d'";
     const char *default_format = "'%s'";
 
