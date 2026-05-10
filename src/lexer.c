@@ -149,6 +149,14 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = Lex_Modulo;
                 tokens[current_tok++] = tok;
                 continue;
+            case '[':
+                tok.kind = Lex_Modulo;
+                tokens[current_tok++] = tok;
+                continue;
+            case ']':
+                tok.kind = Lex_Modulo;
+                tokens[current_tok++] = tok;
+                continue;
             case '"': {
                 size_t len = 0;
                 char wordBuf[BUF_SIZE];
@@ -210,16 +218,40 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 wordBuf[len++] = c;
             }
 
-            if (strcmp(wordBuf, "return") == 0)
+            if      (strcmp(wordBuf, "struct") == 0)
+                tok.kind = Lex_struct;
+            else if (strcmp(wordBuf, "union")  == 0)
+                tok.kind = Lex_union;
+            else if (strcmp(wordBuf, "enum")   == 0)
+                tok.kind = Lex_enum;
+            else if (strcmp(wordBuf, "type")   == 0)
+                tok.kind = Lex_type;
+            else if (strcmp(wordBuf, "let")    == 0)
+                tok.kind = Lex_let;
+            else if (strcmp(wordBuf, "const")  == 0)
+                tok.kind = Lex_const;
+            else if (strcmp(wordBuf, "return") == 0)
                 tok.kind = Lex_return;
             else if (strcmp(wordBuf, "reject") == 0)
                 tok.kind = Lex_reject;
-            else if (strcmp(wordBuf, "let")    == 0)
-                tok.kind = Lex_let;
-            else if (strcmp(wordBuf, "catch")  == 0)
-                tok.kind = Lex_catch;
             else if (strcmp(wordBuf, "local")  == 0)
                 tok.kind = Lex_local;
+            else if (strcmp(wordBuf, "if")     == 0)
+                tok.kind = Lex_if;
+            else if (strcmp(wordBuf, "else")   == 0)
+                tok.kind = Lex_else;
+            else if (strcmp(wordBuf, "switch") == 0)
+                tok.kind = Lex_switch;
+            else if (strcmp(wordBuf, "match")  == 0)
+                tok.kind = Lex_match;
+            else if (strcmp(wordBuf, "while")  == 0)
+                tok.kind = Lex_while;
+            else if (strcmp(wordBuf, "for")    == 0)
+                tok.kind = Lex_for;
+            else if (strcmp(wordBuf, "try")    == 0)
+                tok.kind = Lex_try;
+            else if (strcmp(wordBuf, "catch")  == 0)
+                tok.kind = Lex_catch;
             else {
                 char* items = areno_alloc(areno, len);
                 strcpy(items, wordBuf);
@@ -267,6 +299,8 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Equal:         return "=";
         case Lex_Lower:         return "<";
         case Lex_Greater:       return ">";
+        case Lex_Open_square:   return "[";
+        case Lex_Close_square:  return "]";
 
         // Double char lexeme
         case Lex_Colon_Colon:   return "::";
@@ -276,10 +310,27 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Not_Equal:     return "!=";
 
         // KEYWORDS
-        case Lex_local:  return "local";
+        case Lex_struct: return "struct";
+        case Lex_union:  return "union";
+        case Lex_enum:   return "enum";
+        case Lex_type:   return "type";
+
         case Lex_let:    return "let";
+        case Lex_const:  return "const";
+
         case Lex_return: return "return";
         case Lex_reject: return "reject";
+        case Lex_local:  return "local";
+
+        case Lex_if:     return "if";
+        case Lex_else:   return "else";
+        case Lex_match:  return "match";
+        case Lex_switch: return "switch";
+
+        case Lex_while:  return "while";
+        case Lex_for:    return "for";
+
+        case Lex_try:    return "try";
         case Lex_catch:  return "catch";
 
         case Lex_Ident:  return "IDENT";
@@ -289,7 +340,7 @@ const char* lex_print(Lexeme lexeme)
         case Lex_EOF:     return "EOF";
         case Lex_Invalid: return "INVALID LEXEME";
     }
-    assert("UNREACHABLE");
+    assert(0 && "UNREACHABLE");
     return "UNREACHABLE";
 }
 

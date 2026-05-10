@@ -35,6 +35,8 @@ typedef enum {
     Lex_Equal,         // =
     Lex_Lower,         // <
     Lex_Greater,       // >
+    Lex_Open_square,   // [
+    Lex_Close_square,  // ]
 
     // Double char lexeme
     Lex_Colon_Colon,   // ::
@@ -44,11 +46,29 @@ typedef enum {
     Lex_Not_Equal,     // !=
 
     // KEYWORDS
-    Lex_local,
+    Lex_struct,
+    Lex_union,
+    Lex_enum,
+    Lex_type,
+
     Lex_let,
+    Lex_const,
+
     Lex_return,
     Lex_reject,
+    Lex_local,
+
+    Lex_if,
+    Lex_else,
+    Lex_match,
+    Lex_switch,
+
+    Lex_while,
+    Lex_for,
+
+    Lex_try,
     Lex_catch,
+
     Lex_LastKeyword = Lex_catch,
 
     // Multi
