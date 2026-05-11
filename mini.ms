@@ -1,2 +1,11 @@
-1 - x + 4 % 5 * (2 + 4) 
+yop :: () let x = 32;
 
+main :: () {
+    yop("bijour", 32);
+    let b = ----!-23;
+}
+
+bijour :: () {
+    yop("bijour", 32);
+    let b = 23;
+}

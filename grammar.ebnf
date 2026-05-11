@@ -1,18 +1,22 @@
 program = { statement } ;
 
-statement = { expression | assignation };
+statement = { expression, [ ';' ] | assignation, [ ';' ] } ;
 
-assignation = 'let', S, ident, {S}, '=', {S}, expression, ';' ;
+block = '{', { statement }, '}' ;
+funcdef = iden, '::', '(', ')', block ;
+
+assignation = [ 'let' ], ident, '=', expression | block;
 
 # Expressions (lower have priority)
 expression = equality
 equality   = add,     {S}, [ ('<' | '>' | '==' | '!=' | '<=' | '>='), {S}, mul ] ; 
 add        = mul,     {S}, [ ('+' | '-'), {S}, mul ] ;
 mul        = primary, {S}, { ('*' | '/' | '%'), {S}, primary } ;
-primary    = terminal | '(' expression ')'
+primary    = terminal | '(' expression ')' | funcall
+funcall    = inden, {S}, '(' { expression } ')'
 
 
 terminal = ident | number | string ;
-ident    = alpha,  {alpha | digit | '_' | '-'} ;
+ident    = alpha, { alpha | digit | '_' | '-' } ;
 number   = [ '-' ], digit, { digit };
 string   = '"',    {any}, '"';

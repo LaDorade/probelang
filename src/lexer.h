@@ -1,15 +1,16 @@
 #ifndef LEXER_H_
 #define LEXER_H_
 
+#include <stdbool.h>
 #include <stddef.h>
 #include "areno.h"
 #include "string_view.h"
 
 typedef struct {
-    char  *items;
-    size_t cursor, count;
-    size_t col,    row;
-    int    eof;
+    size_t      cursor;
+    String_View sv;
+    size_t      col, row;
+    bool        eof;
 } Lexer;
 
 typedef enum {
@@ -34,6 +35,8 @@ typedef enum {
     Lex_Equal,         // =
     Lex_Lower,         // <
     Lex_Greater,       // >
+    Lex_Open_square,   // [
+    Lex_Close_square,  // ]
 
     // Double char lexeme
     Lex_Colon_Colon,   // ::
@@ -43,11 +46,29 @@ typedef enum {
     Lex_Not_Equal,     // !=
 
     // KEYWORDS
-    Lex_local,
+    Lex_struct,
+    Lex_union,
+    Lex_enum,
+    Lex_type,
+
     Lex_let,
+    Lex_const,
+
     Lex_return,
     Lex_reject,
+    Lex_local,
+
+    Lex_if,
+    Lex_else,
+    Lex_match,
+    Lex_switch,
+
+    Lex_while,
+    Lex_for,
+
+    Lex_try,
     Lex_catch,
+
     Lex_LastKeyword = Lex_catch,
 
     // Multi
@@ -73,7 +94,7 @@ typedef struct {
 Token*      lexer_lex(Lexer* lexer, Areno* areno);
 char        lex_peek(const Lexer *lex);
 void        lex_advance(Lexer *lex);
-int         lex_match(Lexer *lex, char c);
+bool        lex_match(Lexer *lex, char c);
 const char* lex_print(Lexeme lexeme);
 char*       token_print(const Token *tok, Areno *areno);
 
