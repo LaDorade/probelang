@@ -45,13 +45,18 @@ int main(void)
     Token* tokens = lexer_lex(&lexer, &lex_areno);
 
     Parser parser = (Parser) {
-        .lexer  = lexer,
+        .sv     = lexer.sv,
         .tokens = tokens,
         .cursor = 0,
     };
 
-    Node prog = parser_parse(&parser, &parse_areno);
-    // dump_node(&prog, 0);
+    Node *prog = parser_parse(&parser, &parse_areno);
+    if (prog == NULL) {
+        printf("Error while parsing:\n%s", parser.err_msg);
+        return 1;
+    }
+
+    dump_node(prog, 0);
 
     areno_free(&lex_areno  );
     areno_free(&parse_areno);

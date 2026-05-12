@@ -10,14 +10,23 @@
 #include "areno.h"
 #include "lexer.h"
 
-typedef struct {
-    Token *tokens;
-    Lexer  lexer;
-    size_t cursor;
-} Parser;
-
 typedef struct Expr Expr;
 typedef struct Node Node;
+
+typedef enum {
+    Parse_Err_NoError = 0,
+    Parse_Err_UnexpectedToken,
+    Parse_Err_AllocError
+} Parse_Error;
+
+typedef struct {
+    String_View sv;
+    Token *tokens;
+    size_t cursor;
+    Node  *prog;
+    char  *err_msg;
+    Parse_Error err_code;
+} Parser;
 
 typedef struct {
     String_View name;
@@ -91,13 +100,13 @@ typedef enum {
 } Expr_Kind;
 
 typedef struct {
-    Node   expr;
+    Node  *expr;
     Lexeme operand;
 } Unary_Op ;
 
 typedef struct {
-    Node   lhs;
-    Node   rhs;
+    Node  *lhs;
+    Node  *rhs;
     Lexeme operand;
 } Binary_Op;
 
@@ -122,29 +131,26 @@ struct Expr {
 };
 
 
-Node  parse_funcdef    (Parser *parser, Areno *areno);
-Node  parse_block      (Parser *parser, Areno *areno);
-Node  parse_funcall    (Parser *parser, Areno *areno);
-Node  parse_expression (Parser *parser, Areno *areno);
-Node  parse_assignation(Parser *parser, Areno *areno);
+Node *parse_funcdef    (Parser *parser, Areno *areno);
+Node *parse_block      (Parser *parser, Areno *areno);
+Node *parse_funcall    (Parser *parser, Areno *areno);
+Node *parse_expression (Parser *parser, Areno *areno);
+Node *parse_assignation(Parser *parser, Areno *areno);
 
-Node  parse_comparaison(Parser *parser, Areno *areno);
-Node  parse_addition   (Parser *parser, Areno *areno);
-Node  parse_mul        (Parser *parser, Areno *areno);
-Node  parse_unary      (Parser *parser, Areno *areno);
-Node  parse_terminal   (Parser *parser, Areno *areno);
+Node *parse_comparaison(Parser *parser, Areno *areno);
+Node *parse_addition   (Parser *parser, Areno *areno);
+Node *parse_mul        (Parser *parser, Areno *areno);
+Node *parse_unary      (Parser *parser, Areno *areno);
+Node *parse_terminal   (Parser *parser, Areno *areno);
 
-Node  parser_parse  (Parser *parser, Areno *areno);
+Node *parser_parse  (Parser *parser, Areno *areno);
 
 Token parser_peek   (Parser *parser);
 Token parser_prev   (Parser *parser);
 void  parser_advance(Parser *parser);
-void  parser_expect (Parser *parser, Lexeme lexeme);
+bool  __parser_expect_impl (Parser *parser, Lexeme lexeme);
+Token __parser_match_impl(Parser *parser, ...);
 
-// Do not use, use the variadic macro who appends the Lex_Invalid Lexeme
-// @returns {Token}, Token of kind Lex_Invalid if not found
-Token match(Parser *parser, ...);
-#define parser_match(...) match(__VA_ARGS__, Lex_Invalid)
 
 void  dump_expression (Expr *expr, int level);
 void  dump_node(Node *node, int level);
