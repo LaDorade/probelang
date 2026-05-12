@@ -17,6 +17,12 @@ typedef enum {
     Parse_Err_NoError = 0,
     Parse_Err_UnexpectedToken,
     Parse_Err_AllocError
+} Parse_Error_Kind;
+
+typedef struct {
+    Parse_Error_Kind code;
+    size_t row, col;
+    char  *foramatted;
 } Parse_Error;
 
 typedef struct {
@@ -24,8 +30,7 @@ typedef struct {
     Token *tokens;
     size_t cursor;
     Node  *prog;
-    char  *err_msg;
-    Parse_Error err_code;
+    Parse_Error err;
 } Parser;
 
 typedef struct {

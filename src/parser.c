@@ -74,17 +74,17 @@ Token __parser_match_impl(Parser *parser, ...)
 bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
 {
     if (parser_match(parser, lexeme).kind == Lex_Invalid) {
-        // TODO: use areno instead of malloc
-        // Set areno inside the Parser ?
-        char *err_msg = malloc(BUF_SIZE);
-        if (err_msg == NULL) goto error;
-
         Token current          = parser_peek(parser);
         Token prev             = parser_prev(parser);
         const char* lexeme_str = lex_print(lexeme);
         const char* prev_str   = lex_print(prev.kind);
         const char* curr_str   = lex_print(current.kind);
         String_View line       = sv_get_line(parser->sv, prev.row);
+
+        // TODO: use areno instead of malloc
+        // Set areno inside the Parser ?
+        char *err_msg = malloc(BUF_SIZE);
+        if (err_msg == NULL) goto error;
 
         int cx = 0;
         cx += snprintf(err_msg + cx, BUF_SIZE - cx, "\n");
@@ -115,13 +115,21 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
                 current.col,
                 curr_str);
         if (cx < 0) goto error;
-        parser->err_msg = err_msg;
-        parser->err_code = Parse_Err_UnexpectedToken;
+        parser->err = (Parse_Error) {
+            .code = Parse_Err_UnexpectedToken,
+            .foramatted = err_msg,
+            .row = current.row,
+            .col = current.col,
+        };
         return false;
 error:
+        parser->err = (Parse_Error) {
+            .code = Parse_Err_AllocError,
+            .foramatted = "Error allocating space",
+            .row = current.row,
+            .col = current.col,
+        };
         err_msg = "Error allocating space";
-        parser->err_msg = err_msg;
-        parser->err_code = Parse_Err_AllocError;
         return false;
     }
     return true;
