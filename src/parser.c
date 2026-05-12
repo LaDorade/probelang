@@ -117,7 +117,7 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
         if (cx < 0) goto error;
         parser->err = (Parse_Error) {
             .code = Parse_Err_UnexpectedToken,
-            .foramatted = err_msg,
+            .formatted = err_msg,
             .row = current.row,
             .col = current.col,
         };
@@ -125,7 +125,7 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
 error:
         parser->err = (Parse_Error) {
             .code = Parse_Err_AllocError,
-            .foramatted = "Error allocating space",
+            .formatted = "Error allocating space",
             .row = current.row,
             .col = current.col,
         };
@@ -199,9 +199,9 @@ Node *parse_funcdef(Parser *parser, Areno *areno)
     *function = (Node) {
         .kind = NodeKind_Funcdef,
         .funcdef = (Node_Funcdef) {
-            .name       = sv_copy(&funcname.ident, areno),
-            .args       = args,
-            .statements = body,
+            .name  = sv_copy(&funcname.ident, areno),
+            .args  = args,
+            .block = body,
         }
     };
     return function;
@@ -267,7 +267,6 @@ Node *parse_block(Parser *parser, Areno *areno)
     }
 
     parser_expect(parser, Lex_Close_brace);
-    printf("[DEBUG] Parsed a block, %zu statements\n", block->statements.count);
 
     return block;
 }
@@ -613,7 +612,7 @@ void dump_node(Node *node, int level)
             // body
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Body:\n");
-            dump_node(node->funcdef.statements, level + 2);
+            dump_node(node->funcdef.block, level + 2);
         } break;
 
         case NodeKind_Block: {

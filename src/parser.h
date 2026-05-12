@@ -22,7 +22,7 @@ typedef enum {
 typedef struct {
     Parse_Error_Kind code;
     size_t row, col;
-    char  *foramatted;
+    char  *formatted;
 } Parse_Error;
 
 typedef struct {
@@ -51,7 +51,7 @@ typedef struct {
 typedef struct {
     String_View name;
     Args        args;
-    Node       *statements;
+    Node       *block;
 } Node_Funcdef;
 
 typedef struct {
