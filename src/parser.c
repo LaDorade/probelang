@@ -70,7 +70,7 @@ Token __parser_match_impl(Parser *parser, ...)
     };
 }
 
-#define parser_expect(parser, lexeme) if (!__parser_expect_impl(parser, lexeme)) return NULL;
+#define parser_expect(parser, lexeme) do {if (!__parser_expect_impl(parser, lexeme)) return NULL } while (0);
 bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
 {
     if (parser_match(parser, lexeme).kind == Lex_Invalid) {
