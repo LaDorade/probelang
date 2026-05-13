@@ -62,7 +62,7 @@ int main()
         assert(prog != NULL && "prog should not be null");
         assert(prog->kind == NodeKind_Block && "Root node should be of kind NodeKind_Block");
         assert(prog->statements.count == 2 && "Should have 2 statements");
-        printf("[TEST] Tested root node\n");
+        printf("[TEST] Root node ok\n");
     }
 
     {   // should support 0 statements
@@ -73,7 +73,7 @@ int main()
         // verbeux
         assert(prog->statements.items[0].funcdef.block->kind == NodeKind_Block && "should have a block");
         assert(prog->statements.items[0].funcdef.block->statements.count == 0 && "should have no statements");
-        printf("[TEST] Tested empty function\n");
+        printf("[TEST] Empty function\n");
     }
 
     {   // assignement
@@ -89,7 +89,7 @@ int main()
         assert(value->kind == NodeKind_Expression && "Assignement value should be an expression");
         assert(value->expression->kind == Expr_Number && "Assignement value kind should be a number");
         assert(value->expression->number == 42 && "Assignement value value should be 42");
-        printf("[TEST] Tested standard assignement\n");
+        printf("[TEST] Standard assignement\n");
     }
 
     {   // bad assignement
@@ -99,7 +99,7 @@ int main()
         assert(parser.err.formatted != NULL && "Error message should not be null");
         assert(parser.err.row == 1 && parser.err.col == 17 && "Error location shoud be correct");
         free(parser.err.formatted); // TODO: cleanup function
-        printf("[TEST] Tested error assignement\n");
+        printf("[TEST] Error assignement\n");
     }
 
     {   // block assignement TODO: Test inside of block
@@ -112,6 +112,105 @@ int main()
         assert(sv_eq_string("a", assignement.assignement.ident) && "Assignement ident name should be a");
         Node *value = assignement.assignement.value;
         assert(value->kind == NodeKind_Block && "Assignement value should be a block");
+        printf("[TEST] Block assignement\n");
+    }
+
+    {
+        setup_test("main :: () {1 + 2}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements  = prog->statements.items[0].funcdef.block->statements.items;
+        Node  expression = statements[0];
+        assert(expression.kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->kind == Expr_Binary && "Expected a binary expression");
+        assert(expression.expression->binary_op.lhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->binary_op.rhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->binary_op.lhs->expression->kind == Expr_Number && "Expected a number");
+        assert(expression.expression->binary_op.rhs->expression->kind == Expr_Number && "Expected a number");
+        assert(expression.expression->binary_op.lhs->expression->number == 1 && "Expected number to be 1");
+        assert(expression.expression->binary_op.rhs->expression->number == 2 && "Expected number to be 2");
+        printf("[TEST] Basic Expression\n");
+    }
+
+    {
+        setup_test("main :: () {1 + 2;}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements  = prog->statements.items[0].funcdef.block->statements.items;
+        Node  expression = statements[0];
+        assert(expression.kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->kind == Expr_Binary && "Expected a binary expression");
+        assert(expression.expression->binary_op.lhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->binary_op.rhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->binary_op.lhs->expression->kind == Expr_Number && "Expected a number");
+        assert(expression.expression->binary_op.rhs->expression->kind == Expr_Number && "Expected a number");
+        assert(expression.expression->binary_op.lhs->expression->number == 1 && "Expected number to be 1");
+        assert(expression.expression->binary_op.rhs->expression->number == 2 && "Expected number to be 2");
+        printf("[TEST] Basic Expression (with ;)\n");
+    }
+
+    {
+        setup_test("main :: () {\"bijour\";}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements = prog->statements.items[0].funcdef.block->statements.items;
+        Node  expression = statements[0];
+        assert(expression.kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->kind == Expr_String && "Expected a string expression");
+        assert(sv_eq_string("bijour", expression.expression->str) && "Expected string to be \"bijour\"");
+        printf("[TEST] String expression (with ;)\n");
+    }
+
+    {
+        setup_test("main :: () {\"bijour\" 1 + 2}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 2 && "should have 2 statement");
+        Node *statements  = prog->statements.items[0].funcdef.block->statements.items;
+        Node  string = statements[0];
+        assert(string.kind == NodeKind_Expression && "Expected an expression");
+        assert(string.expression->kind == Expr_String && "Expected a string expression");
+        assert(sv_eq_string("bijour", string.expression->str) && "Expected string to be \"bijour\"");
+        Node  binop = statements[1];
+        assert(binop.kind == NodeKind_Expression && "Expected an expression");
+        assert(binop.expression->kind == Expr_Binary && "Expected a binary expression");
+        assert(binop.expression->binary_op.lhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(binop.expression->binary_op.rhs->kind == NodeKind_Expression && "Expected an expression");
+        assert(binop.expression->binary_op.lhs->expression->kind == Expr_Number && "Expected a number");
+        assert(binop.expression->binary_op.rhs->expression->kind == Expr_Number && "Expected a number");
+        assert(binop.expression->binary_op.lhs->expression->number == 1 && "Expected number to be 1");
+        assert(binop.expression->binary_op.rhs->expression->number == 2 && "Expected number to be 2");
+        printf("[TEST] Two expression without ';' between\n");
+    }
+
+    {
+        setup_test("main :: () { fn() }");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements = prog->statements.items[0].funcdef.block->statements.items;
+        Node  expression = statements[0];
+        assert(expression.kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->kind == Expr_Funcall && "Expected a funcall expression");
+        assert(sv_eq_string("fn", expression.expression->funcall.name) && "Expected a function to be \"fn\"");
+        assert(expression.expression->funcall.args.count == 0 && "Should have no argument passed");
+        printf("[TEST] Funcall expression\n");
+
+        setup_test("main :: () { fn(x, 32) }");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        statements = prog->statements.items[0].funcdef.block->statements.items;
+        expression = statements[0];
+        assert(expression.kind == NodeKind_Expression && "Expected an expression");
+        assert(expression.expression->kind == Expr_Funcall && "Expected a funcall expression");
+        assert(sv_eq_string("fn", expression.expression->funcall.name) && "Expected a function to be \"fn\"");
+        assert(expression.expression->funcall.args.count == 2 && "Should have 2 arguments passed");
+        assert(expression.expression->funcall.args.items[0].kind == NodeKind_Expression && "Arg 1 should be an expression");
+        assert(expression.expression->funcall.args.items[1].kind == NodeKind_Expression && "Arg 2 should be an expression");
+        assert(expression.expression->funcall.args.items[0].expression->kind == Expr_Ident && "Arg 1 should be an indentifier");
+        assert(expression.expression->funcall.args.items[1].expression->kind == Expr_Number && "Arg 2 should be a number");
+        assert(sv_eq_string("x", expression.expression->funcall.args.items[0].expression->ident)
+                && "Arg 1 ident name should be \"x\"");
+        assert(expression.expression->funcall.args.items[1].expression->number == 32 && "Arg 2 number should equal 32");
+        printf("[TEST] Funcall expression with args\n");
     }
 
     areno_free(&lex_areno  );
