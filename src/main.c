@@ -52,7 +52,7 @@ int main(void)
 
     Node *prog = parser_parse(&parser, &parse_areno);
     if (prog == NULL) {
-        printf("Error while parsing:\n%s", parser.err.foramatted);
+        printf("Error while parsing:\n%s", parser.err.formatted);
         return 1;
     }
 
