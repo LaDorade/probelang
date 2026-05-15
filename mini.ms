@@ -1,11 +1,8 @@
-yop :: () let x = 32;
-
 main :: () {
-    yop("bijour", 32);
-    let b = ----!-23;
-}
-
-bijour :: () {
-    yop("bijour", 32);
-    let b = 23;
+    if 12 == 32 {
+        println("bijour!");
+    }
+    if (12 == 32) {
+        println("bijour!");
+    }
 }

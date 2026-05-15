@@ -231,7 +231,7 @@ Node *parse_block(Parser *parser, Areno *areno)
         } else if (current.kind == Lex_Ident) {
             Token next = parser_lookahead(parser, 1);
             if (next.kind == Lex_Equal) { // x = ...; -- reassign
-                Node *node = parse_assignation(parser, areno);
+                Node *node = parse_assignement(parser, areno);
                 if (node == NULL) return NULL;
                 block->statements.items[block->statements.count++] = *node;
                 parser_match(parser, Lex_Semicolon);
@@ -249,14 +249,19 @@ Node *parse_block(Parser *parser, Areno *areno)
                 parser_match(parser, Lex_Semicolon);
             }
         } else if (current.kind == Lex_let) { // let x = ...;
-            Node *node = parse_assignation(parser, areno);
+            Node *node = parse_assignement(parser, areno);
             if (node == NULL) return NULL;
             block->statements.items[block->statements.count++] = *node;
             parser_match(parser, Lex_Semicolon);
+        } else if (current.kind == Lex_if) { // if ... {}
+            Node *node = parse_if(parser, areno);
+            if (node == NULL) return NULL;
+            block->statements.items[block->statements.count++] = *node;
         } else if (current.kind == Lex_return // return ...
             || current.kind == Lex_reject
             || current.kind == Lex_local
         ) {
+            // TODO
             parser_expect(parser, Lex_Invalid);
         } else { // ...
             Node *expr = parse_expression(parser, areno);
@@ -279,9 +284,39 @@ Node parse_return(Parser *parser, Areno *areno)
     return (Node) {0};
 }
 
+Node *parse_if(Parser *parser, Areno *areno)
+{
+    Node tmp = {
+        .kind = NodeKind_If,
+        .if_block = (Node_If) {
+            .condition = NULL,
+            .block = NULL,
+        },
+    };
+    /* Parse if exmpression */
+    parser_expect(parser, Lex_if);
+    bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
+
+    Node *expr = parse_expression(parser, areno);
+    if (expr == NULL) return NULL;
+    tmp.if_block.condition = expr;
+
+    if (used_bracket) parser_expect(parser, Lex_Close_bracket);
+    /* Parse if block or single statement */
+
+    Node *block = parse_block(parser, areno); // if block
+    // TODO: allow one line statements without '{'
+    if (block == NULL) return NULL;
+    tmp.if_block.block = block;
+
+    Node *node = areno_alloc(areno, sizeof(Node));
+    *node = tmp;
+    return node;
+}
+
 // assignation = [ 'let' ] ident '=' expression | block
 // [let] x = ... [;] | [let] x = { ... }
-Node *parse_assignation(Parser *parser, Areno *areno)
+Node *parse_assignement(Parser *parser, Areno *areno)
 {
     parser_match(parser, Lex_let);
     Token ident = parser_peek(parser);
@@ -302,7 +337,7 @@ Node *parse_assignation(Parser *parser, Areno *areno)
 
     Node *node = areno_alloc(areno, sizeof(Node));
     *node = (Node) {
-        .kind = NodeKind_Assignation,
+        .kind = NodeKind_Assignement,
         .assignement = (Node_Assignement) {
             .ident = sv_copy(&ident.ident, areno),
             .value = expr,
@@ -628,11 +663,20 @@ void dump_node(Node *node, int level)
             }
         } break;
 
+        case NodeKind_If: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("If:\n");
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Cond:\n");
+            dump_node(node->if_block.condition, level + 2);
+            dump_node(node->if_block.block, level + 1);
+        } break;
+
         case NodeKind_Expression: {
             dump_expression(node->expression, level);
         } break;
 
-        case NodeKind_Assignation: {
+        case NodeKind_Assignement: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Assignation:\n");
 

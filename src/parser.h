@@ -68,11 +68,11 @@ typedef struct {
 typedef enum {
     NodeKind_Invalid = 0,
 
-    NodeKind_Funcdef,
-    NodeKind_Block,
-
     NodeKind_Expression,
-    NodeKind_Assignation,
+    NodeKind_If,
+    NodeKind_Block,
+    NodeKind_Funcdef,
+    NodeKind_Assignement,
 
     NodeKind_LastNode,
 } Node_Kind;
@@ -81,6 +81,7 @@ struct Node {
     Node_Kind kind;
     union {
         Expr            *expression;
+        Node_If          if_block;
         Node_Block       statements;
         Node_Funcdef     funcdef;
         Node_Assignement assignement;
@@ -136,17 +137,18 @@ struct Expr {
 };
 
 
-Node *parse_funcdef    (Parser *parser, Areno *areno);
-Node *parse_block      (Parser *parser, Areno *areno);
-Node *parse_funcall    (Parser *parser, Areno *areno);
 Node *parse_expression (Parser *parser, Areno *areno);
-Node *parse_assignation(Parser *parser, Areno *areno);
+Node *parse_if         (Parser *parser, Areno *areno);
+Node *parse_block      (Parser *parser, Areno *areno);
+Node *parse_funcdef    (Parser *parser, Areno *areno);
+Node *parse_assignement(Parser *parser, Areno *areno);
 
 Node *parse_comparaison(Parser *parser, Areno *areno);
 Node *parse_addition   (Parser *parser, Areno *areno);
 Node *parse_mul        (Parser *parser, Areno *areno);
 Node *parse_unary      (Parser *parser, Areno *areno);
 Node *parse_terminal   (Parser *parser, Areno *areno);
+Node *parse_funcall    (Parser *parser, Areno *areno);
 
 Node *parser_parse  (Parser *parser, Areno *areno);
 
