@@ -54,11 +54,12 @@ int main()
     {   // should support nothing
         setup_test("");
         assert(prog != NULL && "prog should not be null");
+        printf("[TEST] nothing\n");
     }
 
     {
-        setup_test("main    :: () {yop(\"bijour\", 32);let b = ----!-23;}"
-                    "bijour :: () {yop(\"bijour\", 32);let b = 23;" "}");
+        setup_test("main    :: () {yop(\"bijour\", 32); let b =  (1 + -23) * 2;}"
+                    "bijour :: () {top(\"aled  \", 32); let b =  23;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->kind == NodeKind_Block && "Root node should be of kind NodeKind_Block");
         assert(prog->statements.count == 2 && "Should have 2 statements");

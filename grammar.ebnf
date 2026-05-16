@@ -1,23 +1,35 @@
-program      ::= { statement } ;
+program      ::= { top-statement } ;
+
+# Top level statements
+top-statement ::=
+    | top-funcdef
+    | top-assign
+;
+top-funcdef    ::= term-ident '::' '(' ')' block ;
+top-assign     ::= ( 'let' | 'const' ) ident '=' top-expr ;
+top-expr       ::= top-expr-equal ;
+top-expr-equal ::= top-expr-add   { ('<' | '>' | '==' | '!=' | '<=' | '>=') top-expr-add } ;
+top-expr-add   ::= top-expr-mul   { ('+' | '-')                             top-expr-mul } ;
+top-expr-mul   ::= top-expr-unary { ('*' | '/' | '%')                       top-expr-unary } ;
+top-expr-unary ::= { '!' | '-' } top-expr-primary ;
+top-expr-prim  ::= '(' top-expr ')' | terminal ;
+
+# Blocks
+block        ::= '{' { statement | bloc-defer } '}';
+bloc-defer   ::= 'defer' statement
 
 # Statements
 statement    ::=
-    | stmt-funcdef
     | stmt-assign [ ';' ]
     | stmt-if
     | stmt-while
     | block
     | expression [ ';' ]
 ;
-stmt-funcdef ::= ident '::' '(' ')' block                                         ;
-stmt-block   ::= '{' { statement | defer } '}'                                    ;
-stmt-assign  ::= [ 'let' ] ident '=' expression | block                           ;
-stmt-if      ::= 'if' ((['('] expression [')']) | expression) statement ['else' statement] ;
-stmt-while   ::= 'while' ((['('] expression [')']) | expression) block ;
+stmt-assign  ::= [ 'let' ] ident '=' expression | block ;
+stmt-if      ::= 'if'    ((['('] expression [')']) | expression) statement ['else' statement] ;
+stmt-while   ::= 'while' ((['('] expression [')']) | expression) statement ;
 stmt-for     ::= # TODO
-
-block        ::= '{' { statement | bloc-defer } '}';
-bloc-defer   ::= 'defer' stmt-assign | expr-funcall | block;
 
 # Expressions (lower have priority)
 expression   ::= expr-equal                                                    ;
@@ -25,11 +37,11 @@ expr-equal   ::= expr-add { ('<' | '>' | '==' | '!=' | '<=' | '>=') expr-add } ;
 expr-add     ::= expr-mul { ('+' | '-') expr-mul }                             ;
 expr-mul     ::= expr-unary { ('*' | '/' | '%') expr-unary }                   ;
 expr-unary   ::= { '!' | '-' } expr-primary                                    ;
-expr-primary ::= expr-funcall | terminal | '(' expression ')'                  ;
+expr-primary ::= expr-funcall | '(' expression ')' | terminal                  ;
 expr-funcall ::= term-indent '(' [ expression { ',' expression } [ ',' ] ] ')' ;
 
 # Terminal
-terminal     ::= term-ident | term-number | term-string      ;
+terminal     ::= term-ident | term-string | term-number      ;
 term-ident   ::= (alpha | '_') { alpha | digit | '_' | '-' } ;
 term-number  ::= [ '-' ] digit { digit }                     ;
 term-string  ::= '"' {any} '"'                               ;

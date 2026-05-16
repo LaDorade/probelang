@@ -137,26 +137,42 @@ struct Expr {
     };
 };
 
-
-Node *parse_expression (Parser *parser, Areno *areno);
-Node *parse_if         (Parser *parser, Areno *areno);
-Node *parse_block      (Parser *parser, Areno *areno);
-Node *parse_funcdef    (Parser *parser, Areno *areno);
-Node *parse_assignement(Parser *parser, Areno *areno);
-
-Node *parse_comparaison(Parser *parser, Areno *areno);
-Node *parse_addition   (Parser *parser, Areno *areno);
-Node *parse_mul        (Parser *parser, Areno *areno);
-Node *parse_unary      (Parser *parser, Areno *areno);
-Node *parse_terminal   (Parser *parser, Areno *areno);
-Node *parse_funcall    (Parser *parser, Areno *areno);
-
 Node *parser_parse  (Parser *parser, Areno *areno);
+
+// Top level statements
+Node *parse_top_statement(Parser *parser, Areno *areno);
+Node *parse_top_funcdef  (Parser *parser, Areno *areno);
+Node *parse_top_assign   (Parser *parser, Areno *areno); // TODO!
+
+// Block
+Node *parse_block       (Parser *parser, Areno *areno);
+Node *parse_bloc_defer  (Parser *parser, Areno *areno); // TODO!
+
+// Statement
+Node *parse_statement  (Parser *parser, Areno *areno);
+Node *parse_stmt_assign(Parser *parser, Areno *areno);
+Node *parse_stmt_if    (Parser *parser, Areno *areno);
+Node *parse_stmt_while (Parser *parser, Areno *areno); // TODO!
+Node *parse_stmt_for   (Parser *parser, Areno *areno); // TODO!
+
+// Expressions
+Node *parse_expression  (Parser *parser, Areno *areno);
+Node *parse_expr_equal  (Parser *parser, Areno *areno);
+Node *parse_expr_add    (Parser *parser, Areno *areno);
+Node *parse_expr_mul    (Parser *parser, Areno *areno);
+Node *parse_expr_unary  (Parser *parser, Areno *areno);
+Node *parse_expr_primary(Parser *parser, Areno *areno); // TODO!
+Node *parse_expr_funcall(Parser *parser, Areno *areno);
+
+// Terminal
+Node *parse_terminal    (Parser *parser, Areno *areno);
 
 Token parser_peek   (Parser *parser);
 Token parser_prev   (Parser *parser);
 void  parser_advance(Parser *parser);
+// parser_expect()
 bool  __parser_expect_impl (Parser *parser, Lexeme lexeme);
+// parser_match()
 Token __parser_match_impl(Parser *parser, ...);
 
 
