@@ -50,10 +50,18 @@ typedef enum {
     Lex_union,
     Lex_enum,
     Lex_type,
+    Lex_interface,
 
+    Lex_module,
+    Lex_use,
+    Lex_using,
+
+    Lex_extern,
+    Lex_static,
     Lex_let,
     Lex_const,
 
+    Lex_defer,
     Lex_return,
     Lex_reject,
     Lex_local,
@@ -62,7 +70,9 @@ typedef enum {
     Lex_else,
     Lex_match,
     Lex_switch,
+    Lex_break,
 
+    Lex_do,
     Lex_while,
     Lex_for,
 

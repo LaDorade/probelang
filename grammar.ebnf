@@ -1,22 +1,35 @@
-program = { statement } ;
+program      ::= { statement } ;
 
-statement = { expression, [ ';' ] | assignation, [ ';' ] } ;
+# Statements
+statement    ::=
+    | stmt-funcdef
+    | stmt-assign [ ';' ]
+    | stmt-if
+    | stmt-while
+    | block
+    | expression [ ';' ]
+;
+stmt-funcdef ::= ident '::' '(' ')' block                                         ;
+stmt-block   ::= '{' { statement | defer } '}'                                    ;
+stmt-assign  ::= [ 'let' ] ident '=' expression | block                           ;
+stmt-if      ::= 'if' ((['('] expression [')']) | expression) statement ['else' statement] ;
+stmt-while   ::= 'while' ((['('] expression [')']) | expression) block ;
+stmt-for     ::= # TODO
 
-block = '{', { statement }, '}' ;
-funcdef = iden, '::', '(', ')', block ;
-
-assignation = [ 'let' ], ident, '=', expression | block;
+block        ::= '{' { statement | bloc-defer } '}';
+bloc-defer   ::= 'defer' stmt-assign | expr-funcall | block;
 
 # Expressions (lower have priority)
-expression = equality
-equality   = add,     {S}, [ ('<' | '>' | '==' | '!=' | '<=' | '>='), {S}, mul ] ; 
-add        = mul,     {S}, [ ('+' | '-'), {S}, mul ] ;
-mul        = primary, {S}, { ('*' | '/' | '%'), {S}, primary } ;
-primary    = terminal | '(' expression ')' | funcall
-funcall    = inden, {S}, '(' { expression } ')'
+expression   ::= expr-equal                                                    ;
+expr-equal   ::= expr-add { ('<' | '>' | '==' | '!=' | '<=' | '>=') expr-add } ;
+expr-add     ::= expr-mul { ('+' | '-') expr-mul }                             ;
+expr-mul     ::= expr-unary { ('*' | '/' | '%') expr-unary }                   ;
+expr-unary   ::= { '!' | '-' } expr-primary                                    ;
+expr-primary ::= expr-funcall | terminal | '(' expression ')'                  ;
+expr-funcall ::= term-indent '(' [ expression { ',' expression } [ ',' ] ] ')' ;
 
-
-terminal = ident | number | string ;
-ident    = alpha, { alpha | digit | '_' | '-' } ;
-number   = [ '-' ], digit, { digit };
-string   = '"',    {any}, '"';
+# Terminal
+terminal     ::= term-ident | term-number | term-string      ;
+term-ident   ::= (alpha | '_') { alpha | digit | '_' | '-' } ;
+term-number  ::= [ '-' ] digit { digit }                     ;
+term-string  ::= '"' {any} '"'                               ;
