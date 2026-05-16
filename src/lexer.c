@@ -263,7 +263,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 };
             }
             tokens[current_tok++] = tok;
-            continue;
+        continue;
 
         } else if (isspace(c))
         {
@@ -310,14 +310,18 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Not_Equal:     return "!=";
 
         // KEYWORDS
-        case Lex_struct: return "struct";
-        case Lex_union:  return "union";
-        case Lex_enum:   return "enum";
-        case Lex_type:   return "type";
+        case Lex_struct:    return "struct";
+        case Lex_union:     return "union";
+        case Lex_enum:      return "enum";
+        case Lex_type:      return "type";
+        case Lex_interface: return "interface";
 
+        case Lex_extern: return "extern";
+        case Lex_static: return "static";
         case Lex_let:    return "let";
         case Lex_const:  return "const";
 
+        case Lex_defer:  return "defer";
         case Lex_return: return "return";
         case Lex_reject: return "reject";
         case Lex_local:  return "local";
