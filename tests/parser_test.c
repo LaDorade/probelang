@@ -220,10 +220,10 @@ int main()
         Node if_statement  = prog->statements.items[0].funcdef.block->statements.items[0];
         
         assert(if_statement.kind == NodeKind_If && "Expected an if");
-        assert(if_statement.if_block.condition != NULL && "Expected condition to not be null");
-        assert(if_statement.if_block.block != NULL && "Expected block to not be null");
+        assert(if_statement.if_node.condition != NULL && "Expected condition to not be null");
+        assert(if_statement.if_node.ok_node != NULL && "Expected block to not be null");
 
-        Node  *binop = if_statement.if_block.condition;
+        Node  *binop = if_statement.if_node.condition;
         assert(binop->kind == NodeKind_Expression && "Expected an expression");
         assert(binop->expression->kind == Expr_Binary && "Expected a binary expression");
         assert(binop->expression->binary_op.lhs->kind == NodeKind_Expression && "Expected an expression");
@@ -233,10 +233,10 @@ int main()
         assert(binop->expression->binary_op.lhs->expression->number == 12 && "Expected number to be 12");
         assert(binop->expression->binary_op.rhs->expression->number == 32 && "Expected number to be 32");
 
-        Node *block = if_statement.if_block.block;
+        Node *block = if_statement.if_node.ok_node;
         assert(block->kind == NodeKind_Block && "Expected a block");
         assert(block->statements.count == 1 && "Expected 1 statement in block");
-        Node stmt = if_statement.if_block.block->statements.items[0];
+        Node stmt = if_statement.if_node.ok_node->statements.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
         assert(sv_eq_string("println", stmt.expression->funcall.name) && "Expected funcall name to be 'println'");
@@ -250,10 +250,10 @@ int main()
         Node if_statement  = prog->statements.items[0].funcdef.block->statements.items[0];
         
         assert(if_statement.kind == NodeKind_If && "Expected an if");
-        assert(if_statement.if_block.condition != NULL && "Expected condition to not be null");
-        assert(if_statement.if_block.block != NULL && "Expected block to not be null");
+        assert(if_statement.if_node.condition != NULL && "Expected condition to not be null");
+        assert(if_statement.if_node.ok_node != NULL && "Expected block to not be null");
 
-        Node  *binop = if_statement.if_block.condition;
+        Node  *binop = if_statement.if_node.condition;
         assert(binop->kind == NodeKind_Expression && "Expected an expression");
         assert(binop->expression->kind == Expr_Binary && "Expected a binary expression");
         assert(binop->expression->binary_op.lhs->kind == NodeKind_Expression && "Expected an expression");
@@ -263,10 +263,10 @@ int main()
         assert(binop->expression->binary_op.lhs->expression->number == 41 && "Expected number to be 41");
         assert(binop->expression->binary_op.rhs->expression->number == 32 && "Expected number to be 32");
 
-        Node *block = if_statement.if_block.block;
+        Node *block = if_statement.if_node.ok_node;
         assert(block->kind == NodeKind_Block && "Expected a block");
         assert(block->statements.count == 1 && "Expected 1 statement in block");
-        Node stmt = if_statement.if_block.block->statements.items[0];
+        Node stmt = block->statements.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
         assert(sv_eq_string("println", stmt.expression->funcall.name) && "Expected funcall name to be 'println'");
@@ -279,6 +279,81 @@ int main()
         assert(parser.err.code && "parser should show an error");
         assert(parser.err.col == 26 && "error should be at col 26");
         printf("[TEST] Test simple if with missing one '()'\n");
+    }
+
+    {
+        setup_test("main :: () {if 12 == 32 { println(\"yes!\"); } else { println(\"no!\"); }}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node if_statement  = prog->statements.items[0].funcdef.block->statements.items[0];
+
+        assert(if_statement.kind == NodeKind_If && "Expected an if");
+        assert(if_statement.if_node.condition != NULL && "Expected condition to not be null");
+        assert(if_statement.if_node.ok_node != NULL && "Expected if-ok node to not be null");
+        assert(if_statement.if_node.ko_node != NULL && "Expected else node to not be null");
+
+        Node *else_node = if_statement.if_node.ko_node;
+        assert(else_node->kind == NodeKind_Block && "Expected a block");
+        assert(else_node->statements.count == 1 && "Expected 1 statement in block");
+        Node stmt = else_node->statements.items[0];
+        assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
+        assert(stmt.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
+        assert(sv_eq_string("println", stmt.expression->funcall.name) && "Expected funcall name to be 'println'");
+        // wild test (not checking kind nor if allocated)
+        assert(sv_eq_string("no!", stmt.expression->funcall.args.items[0].expression->str) && "Expected funcall name to be 'println'");
+        printf("[TEST] Test simple if-else\n");
+    }
+
+    {
+        setup_test("main :: () {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); }}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node if_statement  = prog->statements.items[0].funcdef.block->statements.items[0];
+
+        assert(if_statement.kind == NodeKind_If && "Expected an if");
+        assert(if_statement.if_node.condition != NULL && "Expected condition to not be null");
+        assert(if_statement.if_node.ok_node != NULL && "Expected if-ok node to not be null");
+        assert(if_statement.if_node.ko_node != NULL && "Expected else node to not be null");
+
+        Node *else_node = if_statement.if_node.ko_node;
+        assert(else_node->kind == NodeKind_If && "Expected an if-block");
+        assert(else_node->if_node.ok_node->kind == NodeKind_Block && "Expected a block in if");
+        Node stmt = else_node->if_node.ok_node->statements.items[0];
+        assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
+        assert(stmt.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
+        assert(sv_eq_string("println", stmt.expression->funcall.name) && "Expected funcall name to be 'println'");
+        // wild test (not checking kind nor if allocated)
+        assert(sv_eq_string("bij!", stmt.expression->funcall.args.items[0].expression->str) && "Expected funcall name to be 'println'");
+        printf("[TEST] Test if-else_if\n");
+    }
+
+    {
+        setup_test("main :: () {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); } else { println(\"aled\"); }}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node if_statement  = prog->statements.items[0].funcdef.block->statements.items[0];
+
+        assert(if_statement.kind == NodeKind_If && "Expected an if");
+        assert(if_statement.if_node.condition != NULL && "Expected condition to not be null");
+        assert(if_statement.if_node.ok_node != NULL && "Expected if-ok node to not be null");
+        assert(if_statement.if_node.ko_node != NULL && "Expected else node to not be null");
+
+        Node *elseif_node = if_statement.if_node.ko_node;
+        assert(elseif_node->kind == NodeKind_If && "Expected an if-block");
+        assert(elseif_node->if_node.ok_node->kind == NodeKind_Block && "Expected a block in if");
+        Node stmt = elseif_node->if_node.ok_node->statements.items[0];
+        assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
+        assert(stmt.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
+        assert(sv_eq_string("println", stmt.expression->funcall.name) && "Expected funcall name to be 'println'");
+        // wild test (not checking kind nor if allocated)
+        assert(sv_eq_string("bij!", stmt.expression->funcall.args.items[0].expression->str) && "Expected funcall name to be 'println'");
+
+        Node *else_node = if_statement.if_node.ko_node->if_node.ko_node;
+        assert(else_node->kind == NodeKind_Block && "Expected a block");
+        assert(else_node->statements.items[0].kind == NodeKind_Expression && "Expected a expr");
+        assert(else_node->statements.items[0].expression->kind == Expr_Funcall && "Expected a funcall");
+        assert(sv_eq_string("println", else_node->statements.items[0].expression->funcall.name) && "Expected fun name to be println");
+        printf("[TEST] Test if-else_if-else\n");
     }
 
     areno_free(&lex_areno  );

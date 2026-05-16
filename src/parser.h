@@ -56,7 +56,8 @@ typedef struct {
 
 typedef struct {
     Node *condition; // expression
-    Node *block; // 1 statement or block
+    Node *ok_node; // 1 statement or block
+    Node *ko_node; // 1 statement, block or if block (NULL if no else)
 } Node_If;
 
 typedef struct {
@@ -81,7 +82,7 @@ struct Node {
     Node_Kind kind;
     union {
         Expr            *expression;
-        Node_If          if_block;
+        Node_If          if_node;
         Node_Block       statements;
         Node_Funcdef     funcdef;
         Node_Assignement assignement;

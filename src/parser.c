@@ -288,9 +288,10 @@ Node *parse_if(Parser *parser, Areno *areno)
 {
     Node tmp = {
         .kind = NodeKind_If,
-        .if_block = (Node_If) {
+        .if_node = (Node_If) {
             .condition = NULL,
-            .block = NULL,
+            .ok_node  = NULL,
+            .ko_node  = NULL, // sem analysis must check if there is an else
         },
     };
     /* Parse if exmpression */
@@ -299,15 +300,28 @@ Node *parse_if(Parser *parser, Areno *areno)
 
     Node *expr = parse_expression(parser, areno);
     if (expr == NULL) return NULL;
-    tmp.if_block.condition = expr;
+    tmp.if_node.condition = expr;
 
     if (used_bracket) parser_expect(parser, Lex_Close_bracket);
     /* Parse if block or single statement */
 
-    Node *block = parse_block(parser, areno); // if block
+    Node *if_block = parse_block(parser, areno); // if block
     // TODO: allow one line statements without '{'
-    if (block == NULL) return NULL;
-    tmp.if_block.block = block;
+    if (if_block == NULL) return NULL;
+    tmp.if_node.ok_node = if_block;
+
+    if (parser_match(parser, Lex_else).kind != Lex_Invalid) { // else...
+        if (parser_peek(parser).kind == Lex_if) { // else if ... {}
+            Node *else_if = parse_if(parser, areno);
+            if (else_if == NULL) return NULL;
+            tmp.if_node.ko_node = else_if;
+        } else {
+            Node *else_block = parse_block(parser, areno); // else {...}
+                                                           // TODO: allow one line statements without '{'
+            if (else_block == NULL) return NULL;
+            tmp.if_node.ko_node = else_block;
+        }
+    }
 
     Node *node = areno_alloc(areno, sizeof(Node));
     *node = tmp;
@@ -668,8 +682,13 @@ void dump_node(Node *node, int level)
             printf("If:\n");
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Cond:\n");
-            dump_node(node->if_block.condition, level + 2);
-            dump_node(node->if_block.block, level + 1);
+            dump_node(node->if_node.condition, level + 2);
+            dump_node(node->if_node.ok_node, level + 1);
+            if (node->if_node.ko_node != NULL) {
+                for (int i = 0; i < level + 1; i++) printf(" ");
+                printf("Else\n");
+                dump_node(node->if_node.ko_node, level + 2);
+            }
         } break;
 
         case NodeKind_Expression: {
