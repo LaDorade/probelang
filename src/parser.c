@@ -300,7 +300,7 @@ Node *parse_statement(Parser *parser, Areno *areno)
             parser_match(parser, Lex_Semicolon);
             return expr;
         }
-    } else if (current.kind == Lex_let) { // let x = ...;
+    } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
         Node *node = parse_stmt_assign(parser, areno);
         if (node == NULL) return NULL;
         parser_match(parser, Lex_Semicolon);
@@ -388,9 +388,33 @@ Node *parse_stmt_while(Parser *parser, Areno *areno)
 // stmt-assign  ::= [ 'let' ] ident '=' expression | block
 Node *parse_stmt_assign(Parser *parser, Areno *areno)
 {
-    parser_match(parser, Lex_let);
-    Token ident = parser_peek(parser);
-    parser_expect(parser, Lex_Ident);
+    Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
+    if (current.kind == Lex_Invalid) {
+        current = parser_peek(parser);
+        printf("ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
+                current.row,
+                current.col,
+                lex_print(current.kind));
+        assert(0 && "[TODO] ERROR HANDLING (stmt-assign)");
+    }
+
+    Assign_Kind assign_kind = AssignKind_Invalid;
+    if (current.kind == Lex_let) {
+        assign_kind = AssignKind_Let;
+    } else if (current.kind == Lex_const) {
+        assign_kind = AssignKind_Const;
+    } else if (current.kind == Lex_Ident) {
+        assign_kind = AssignKind_Reassign;
+    } else {
+        printf("[UNREACHABLE] stmt-assign");
+        assert(0 && "[UNREACHABLE] stmt-assign");
+    }
+
+    Token ident = current;
+    if (current.kind != Lex_Ident) {
+        ident = parser_peek(parser);
+        parser_expect(parser, Lex_Ident);
+    }
     parser_expect(parser, Lex_Equal);
 
     Node *expr = NULL;
@@ -409,6 +433,7 @@ Node *parse_stmt_assign(Parser *parser, Areno *areno)
     *node = (Node) {
         .kind = NodeKind_Assignement,
         .assignement = (Node_Assignement) {
+            .kind  = assign_kind,
             .ident = sv_copy(&ident.ident, areno),
             .value = expr,
         },
@@ -743,8 +768,13 @@ void dump_node(Node *node, int level)
         } break;
 
         case NodeKind_Assignement: {
+            const char *kind = node->assignement.kind == AssignKind_Let
+                ? "let"
+                : node->assignement.kind == AssignKind_Const
+                ? "const"
+                : "reassign";
             for (int i = 0; i < level; i++) printf(" ");
-            printf("Assignation:\n");
+            printf("Assignation (%s):\n", kind);
 
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Name: %.*s\n",

@@ -65,10 +65,21 @@ typedef struct {
     Node *ok_node; // 1 statement
 } Node_While;
 
+typedef enum {
+    AssignKind_Invalid = 0,
+
+    AssignKind_Let,
+    AssignKind_Const,
+    AssignKind_Reassign,
+} Assign_Kind;
+
 typedef struct {
+    Assign_Kind kind;
     String_View ident;
-    Node       *value; // expression or block
-                       // sem analysis will check if block ok
+
+    // expression or block
+    // sem analysis will check if block ok
+    Node *value; 
 } Node_Assignement;
 
 typedef enum {

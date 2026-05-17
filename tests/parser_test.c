@@ -85,12 +85,47 @@ int main()
         Node  assignement = statements[0];
 
         assert(assignement.kind == NodeKind_Assignement && "Statement should be an assignement");
+        assert(assignement.assignement.kind == AssignKind_Let && "Assignement kind should be let");
         assert(sv_eq_string("a", assignement.assignement.ident) && "Assignement ident name should be a");
         Node *value = assignement.assignement.value;
         assert(value->kind == NodeKind_Expression && "Assignement value should be an expression");
         assert(value->expression->kind == Expr_Number && "Assignement value kind should be a number");
         assert(value->expression->number == 42 && "Assignement value value should be 42");
-        printf("[TEST] Standard assignement\n");
+        printf("[TEST] let assignement\n");
+    }
+
+    {   // const assignement
+        setup_test("main :: () {const a = 42;}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements  = prog->statements.items[0].funcdef.block->statements.items;
+        Node  assignement = statements[0];
+
+        assert(assignement.kind == NodeKind_Assignement && "Statement should be an assignement");
+        assert(assignement.assignement.kind == AssignKind_Const && "Assignement kind should be const");
+        assert(sv_eq_string("a", assignement.assignement.ident) && "Assignement ident name should be a");
+        Node *value = assignement.assignement.value;
+        assert(value->kind == NodeKind_Expression && "Assignement value should be an expression");
+        assert(value->expression->kind == Expr_Number && "Assignement value kind should be a number");
+        assert(value->expression->number == 42 && "Assignement value value should be 42");
+        printf("[TEST] const assignement\n");
+    }
+
+    {   // reassignement
+        setup_test("main :: () { a = 42;}");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 1 && "should have 1 statement");
+        Node *statements  = prog->statements.items[0].funcdef.block->statements.items;
+        Node  assignement = statements[0];
+
+        assert(assignement.kind == NodeKind_Assignement && "Statement should be an assignement");
+        assert(assignement.assignement.kind == AssignKind_Reassign && "Assignement kind should be a reassignement");
+        assert(sv_eq_string("a", assignement.assignement.ident) && "Assignement ident name should be a");
+        Node *value = assignement.assignement.value;
+        assert(value->kind == NodeKind_Expression && "Assignement value should be an expression");
+        assert(value->expression->kind == Expr_Number && "Assignement value kind should be a number");
+        assert(value->expression->number == 42 && "Assignement value value should be 42");
+        printf("[TEST] reassignement\n");
     }
 
     {   // bad assignement
