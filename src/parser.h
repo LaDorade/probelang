@@ -56,9 +56,14 @@ typedef struct {
 
 typedef struct {
     Node *condition; // expression
-    Node *ok_node; // 1 statement or block
-    Node *ko_node; // 1 statement, block or if block (NULL if no else)
+    Node *ok_node; // 1 statement
+    Node *ko_node; // 1 statement (NULL if no else)
 } Node_If;
+
+typedef struct {
+    Node *condition; // expression
+    Node *ok_node; // 1 statement
+} Node_While;
 
 typedef struct {
     String_View ident;
@@ -69,11 +74,12 @@ typedef struct {
 typedef enum {
     NodeKind_Invalid = 0,
 
-    NodeKind_Expression,
-    NodeKind_If,
-    NodeKind_Block,
     NodeKind_Funcdef,
+    NodeKind_Block,
     NodeKind_Assignement,
+    NodeKind_If,
+    NodeKind_While,
+    NodeKind_Expression,
 
     NodeKind_LastNode,
 } Node_Kind;
@@ -81,11 +87,12 @@ typedef enum {
 struct Node {
     Node_Kind kind;
     union {
-        Expr            *expression;
-        Node_If          if_node;
-        Node_Block       statements;
         Node_Funcdef     funcdef;
+        Node_Block       statements;
         Node_Assignement assignement;
+        Node_If          if_node;
+        Node_While       while_node;
+        Expr            *expression;
     };
 };
 
@@ -145,27 +152,27 @@ Node *parse_top_funcdef  (Parser *parser, Areno *areno);
 Node *parse_top_assign   (Parser *parser, Areno *areno); // TODO!
 
 // Block
-Node *parse_block       (Parser *parser, Areno *areno);
-Node *parse_bloc_defer  (Parser *parser, Areno *areno); // TODO!
+Node *parse_block        (Parser *parser, Areno *areno);
+Node *parse_bloc_defer   (Parser *parser, Areno *areno); // TODO!
 
 // Statement
-Node *parse_statement  (Parser *parser, Areno *areno);
-Node *parse_stmt_assign(Parser *parser, Areno *areno);
-Node *parse_stmt_if    (Parser *parser, Areno *areno);
-Node *parse_stmt_while (Parser *parser, Areno *areno); // TODO!
-Node *parse_stmt_for   (Parser *parser, Areno *areno); // TODO!
+Node *parse_statement    (Parser *parser, Areno *areno);
+Node *parse_stmt_assign  (Parser *parser, Areno *areno);
+Node *parse_stmt_if      (Parser *parser, Areno *areno);
+Node *parse_stmt_while   (Parser *parser, Areno *areno);
+Node *parse_stmt_for     (Parser *parser, Areno *areno); // TODO!
 
 // Expressions
-Node *parse_expression  (Parser *parser, Areno *areno);
-Node *parse_expr_equal  (Parser *parser, Areno *areno);
-Node *parse_expr_add    (Parser *parser, Areno *areno);
-Node *parse_expr_mul    (Parser *parser, Areno *areno);
-Node *parse_expr_unary  (Parser *parser, Areno *areno);
-Node *parse_expr_primary(Parser *parser, Areno *areno); // TODO!
-Node *parse_expr_funcall(Parser *parser, Areno *areno);
+Node *parse_expression   (Parser *parser, Areno *areno);
+Node *parse_expr_equal   (Parser *parser, Areno *areno);
+Node *parse_expr_add     (Parser *parser, Areno *areno);
+Node *parse_expr_mul     (Parser *parser, Areno *areno);
+Node *parse_expr_unary   (Parser *parser, Areno *areno);
+Node *parse_expr_primary (Parser *parser, Areno *areno); // TODO!
+Node *parse_expr_funcall (Parser *parser, Areno *areno);
 
 // Terminal
-Node *parse_terminal    (Parser *parser, Areno *areno);
+Node *parse_terminal     (Parser *parser, Areno *areno);
 
 Token parser_peek   (Parser *parser);
 Token parser_prev   (Parser *parser);

@@ -305,8 +305,12 @@ Node *parse_statement(Parser *parser, Areno *areno)
         if (node == NULL) return NULL;
         parser_match(parser, Lex_Semicolon);
         return node;
-    } else if (current.kind == Lex_if) { // if ... {}
+    } else if (current.kind == Lex_if) { // if ...
         Node *node = parse_stmt_if(parser, areno);
+        if (node == NULL) return NULL;
+        return node;
+    } else if (current.kind == Lex_while) { // while ...
+        Node *node = parse_stmt_while(parser, areno);
         if (node == NULL) return NULL;
         return node;
     }
@@ -323,37 +327,58 @@ Node *parse_stmt_if(Parser *parser, Areno *areno)
         .kind = NodeKind_If,
         .if_node = (Node_If) {
             .condition = NULL,
-            .ok_node  = NULL,
-            .ko_node  = NULL, // sem analysis must check if there is an else
+            .ok_node   = NULL,
+            .ko_node   = NULL, // sem analysis must check if there is an else
         },
     };
+
     /* Parse if exmpression */
     parser_expect(parser, Lex_if);
     bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
-
     Node *expr = parse_expression(parser, areno);
     if (expr == NULL) return NULL;
     tmp.if_node.condition = expr;
-
     if (used_bracket) parser_expect(parser, Lex_Close_bracket);
-    /* Parse if block or single statement */
 
-    Node *if_node = parse_statement(parser, areno); // if nod
-    // TODO: allow one line statements without '{'
+    /* Parse if nodé */
+    Node *if_node = parse_statement(parser, areno);
     if (if_node == NULL) return NULL;
     tmp.if_node.ok_node = if_node;
 
-    if (parser_match(parser, Lex_else).kind != Lex_Invalid) { // else...
-        if (parser_peek(parser).kind == Lex_if) { // else if ... {}
-            Node *else_if = parse_stmt_if(parser, areno);
-            if (else_if == NULL) return NULL;
-            tmp.if_node.ko_node = else_if;
-        } else {
-            Node *else_block = parse_statement(parser, areno); // else {...}
-            if (else_block == NULL) return NULL;
-            tmp.if_node.ko_node = else_block;
-        }
+    /* Parse else nodé */
+    if (parser_match(parser, Lex_else).kind != Lex_Invalid) {
+        Node *else_block = parse_statement(parser, areno);
+        if (else_block == NULL) return NULL;
+        tmp.if_node.ko_node = else_block;
     }
+
+    Node *node = areno_alloc(areno, sizeof(Node));
+    *node = tmp;
+    return node;
+}
+
+Node *parse_stmt_while(Parser *parser, Areno *areno)
+{
+    Node tmp = {
+        .kind = NodeKind_While,
+        .while_node = (Node_While) {
+            .condition = NULL,
+            .ok_node   = NULL,
+        },
+    };
+
+    /* Parse while exmpression */
+    parser_expect(parser, Lex_while);
+    bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
+    Node *expr = parse_expression(parser, areno);
+    if (expr == NULL) return NULL;
+    tmp.while_node.condition = expr;
+    if (used_bracket) parser_expect(parser, Lex_Close_bracket);
+
+    /* Parse while nodé */
+    Node *while_node = parse_statement(parser, areno);
+    if (while_node == NULL) return NULL;
+    tmp.while_node.ok_node = while_node;
 
     Node *node = areno_alloc(areno, sizeof(Node));
     *node = tmp;
@@ -702,6 +727,15 @@ void dump_node(Node *node, int level)
                 printf("Else\n");
                 dump_node(node->if_node.ko_node, level + 2);
             }
+        } break;
+
+        case NodeKind_While: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("While:\n");
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Cond:\n");
+            dump_node(node->if_node.condition, level + 2);
+            dump_node(node->if_node.ok_node, level + 1);
         } break;
 
         case NodeKind_Expression: {

@@ -357,6 +357,44 @@ int main()
         printf("[TEST] Test if-else_if-else\n");
     }
 
+    {
+        setup_test("main :: () { let a = 32; while a >= 0 println(\"bijour!\"); }");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 2 && "should have 2 statement");
+
+        Node assign = prog->statements.items[0].funcdef.block->statements.items[0];
+        assert(assign.kind == NodeKind_Assignement && "Expected first statement to be an assignement");
+
+        Node while_statement = prog->statements.items[0].funcdef.block->statements.items[1];
+        assert(while_statement.kind == NodeKind_While && "Expected a while");
+        assert(while_statement.while_node.condition != NULL && "Expected condition to not be null");
+        assert(while_statement.while_node.ok_node != NULL && "Expected while-ok node to not be null");
+
+        assert(while_statement.while_node.ok_node->kind == NodeKind_Expression && "Expected while node to be a expression");
+        assert(while_statement.while_node.ok_node->expression->kind == Expr_Funcall && "Expected expression to be a funcall");
+
+        printf("[TEST] Test while (no paren, no block)\n");
+    }
+
+    {
+        setup_test("main :: () { let a = 32; while a >= 0 { a = a + 1; println(\"bijour!\"); } }");
+        assert(prog != NULL && "prog should not be null");
+        assert(prog->statements.items[0].funcdef.block->statements.count == 2 && "should have 2 statement");
+
+        Node assign = prog->statements.items[0].funcdef.block->statements.items[0];
+        assert(assign.kind == NodeKind_Assignement && "Expected first statement to be an assignement");
+
+        Node while_statement = prog->statements.items[0].funcdef.block->statements.items[1];
+        assert(while_statement.kind == NodeKind_While && "Expected a while");
+        assert(while_statement.while_node.condition != NULL && "Expected condition to not be null");
+        assert(while_statement.while_node.ok_node != NULL && "Expected while-ok node to not be null");
+
+        assert(while_statement.while_node.ok_node->kind == NodeKind_Block && "Expected while ok node to be a block");
+        assert(while_statement.while_node.ok_node->statements.count == 2 && "Expected while ok node to have 2 statements");
+
+        printf("[TEST] Test while (no paren, block)\n");
+    }
+
     areno_free(&lex_areno  );
     areno_free(&parse_areno);
 
