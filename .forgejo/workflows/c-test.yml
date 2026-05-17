@@ -1,0 +1,13 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "*" ]
+
+jobs:
+  build:
+    runs-on: codeberg-tiny
+    steps:
+    - uses: actions/checkout@v4
+    - name: make
+      run: make run-test

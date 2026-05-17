@@ -9,13 +9,18 @@ typedef struct {
     size_t len;
 } String_View;
 
-String_View sv_chop_left (String_View *sv, char c);
-String_View sv_chop_right(String_View *sv, char c);
 String_View sv_get_line(String_View sv, size_t line);
+int sv_eq_string(const char* str, String_View sv);
 
 #endif // STRING_VIEW_H_
 
 #ifdef STRING_VIEW_IMPLEMENTATION
+
+int sv_eq_string(const char* str, String_View sv)
+{
+    if (strlen(str) != sv.len) return 0;
+    return strncmp(str, sv.items, sv.len) == 0 ? 1 : 0;
+}
 
 String_View sv_get_line(String_View sv, size_t line)
 {
@@ -44,38 +49,6 @@ String_View sv_get_line(String_View sv, size_t line)
     return (String_View) {
         .items = sv.items + count_left,
         .len   = line_size,
-    };
-}
-
-String_View sv_chop_left(String_View *sv, char c)
-{
-    size_t count = 0;
-    while (count < sv->len) {
-        if (sv->items[count] == c) {
-            count++; // chop the delimiter
-            break;
-        }
-        count++;
-    }
-
-    return (String_View) {
-        .items = sv->items + count,
-        .len   = sv->len - count
-    };
-}
-String_View sv_chop_right(String_View *sv, char c)
-{
-    size_t count = sv->len - 1;
-    while (count >= 0) {
-        if (sv->items[count] == c) {
-            break;
-        }
-        count--;
-    }
-
-    return (String_View) {
-        .items = sv->items,
-        .len   = count
     };
 }
 

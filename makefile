@@ -6,7 +6,13 @@ all: main
 run: main
 	./main
 
+run-test: test
+	./test
+
 .PHONY: run
+
+test: ./tests/parser_test.c lexer.o parser.o
+	$(CC) $(FLAGS) $(INCLUDES) ./tests/parser_test.c parser.o lexer.o -o test
 
 main: ./src/main.c lexer.o parser.o
 	$(CC) $(FLAGS) $(INCLUDES) ./src/main.c parser.o lexer.o -o main
