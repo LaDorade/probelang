@@ -50,7 +50,7 @@ void setup_test(char *buf)
 
 int main()
 {
-    printf("-- %s\n", __FILE_NAME__);
+    printf("-- %s\n", __FILE__);
     {   // should support nothing
         setup_test("");
         assert(prog != NULL && "prog should not be null");
@@ -279,6 +279,7 @@ int main()
         assert(prog == NULL && "prog should be null");
         assert(parser.err.code && "parser should show an error");
         assert(parser.err.col == 26 && "error should be at col 26");
+        free(parser.err.formatted); // TODO: cleanup function
         printf("[TEST] Test simple if with missing one '()'\n");
     }
 
@@ -398,6 +399,6 @@ int main()
     areno_free(&lex_areno  );
     areno_free(&parse_areno);
 
-    printf("-- END %s\n", __FILE_NAME__);
+    printf("-- END %s\n", __FILE__);
     return 0;
 }
