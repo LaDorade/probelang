@@ -218,7 +218,8 @@ Node *parse_top_funcdef(Parser *parser, Areno *areno)
         }
     }
 
-    // TODO: return type
+    Node *type = parse_type_expr(parser, areno);
+    if (type == NULL) return NULL;
     
     // expect a block
     Node *body = parse_block(parser, areno);
@@ -228,9 +229,10 @@ Node *parse_top_funcdef(Parser *parser, Areno *areno)
     *function = (Node) {
         .kind = NodeKind_Funcdef,
         .funcdef = (Node_Funcdef) {
-            .name  = sv_copy(&funcname.ident, areno),
-            .args  = args,
-            .block = body,
+            .name        = sv_copy(&funcname.ident, areno),
+            .args        = args,
+            .block       = body,
+            .return_type = type,
         }
     };
     return function;
@@ -385,7 +387,65 @@ Node *parse_stmt_while(Parser *parser, Areno *areno)
     return node;
 }
 
-// stmt-assign  ::= [ 'let' ] ident '=' expression | block
+// type-expr     ::= term-optional [ '!' type-optional ] ;
+// type-optional ::= [ '?' ] term-ident ;
+Node *parse_type_expr(Parser *parser, Areno *areno)
+{
+    Node type = {0};
+    type.kind = NodeKind_Type;
+    parser_expect(parser, Lex_Colon);
+
+    Token current;
+    bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
+    if (nullable && parser_peek(parser).kind != Lex_Ident) {
+        current = parser_peek(parser);
+        printf("ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
+                current.row,
+                current.col,
+                lex_print(current.kind));
+        assert(0 && "[TODO] ERROR HANDLING (parse_type_expr)");
+        return NULL;
+    }
+    if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
+        type.type.success_set      = true;
+        type.type.success.ident    = sv_copy(&current.ident, areno);
+        type.type.success.nullable = nullable;
+    }
+
+    if (parser_match(parser, Lex_Bang).kind != Lex_Invalid) {
+        bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
+        if (nullable && parser_peek(parser).kind != Lex_Ident) {
+            current = parser_peek(parser);
+            printf("ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
+                    current.row,
+                    current.col,
+                    lex_print(current.kind));
+            assert(0 && "[TODO] ERROR HANDLING (parse_type_expr)");
+            return NULL;
+        }
+        if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
+            type.type.error_set      = true;
+            type.type.error.ident    = sv_copy(&current.ident, areno);
+            type.type.error.nullable = nullable;
+        }
+    }
+
+    if (!type.type.success_set && !type.type.error_set) {
+        current = parser_peek(parser);
+        printf("ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
+                current.row,
+                current.col,
+                lex_print(current.kind));
+        assert(0 && "[TODO] ERROR HANDLING (parse_type_expr)");
+        return NULL;
+    }
+
+    Node *node = areno_alloc(areno, sizeof(Node));
+    *node = type;
+    return node;
+}
+
+// stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
 Node *parse_stmt_assign(Parser *parser, Areno *areno)
 {
     Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
@@ -415,6 +475,12 @@ Node *parse_stmt_assign(Parser *parser, Areno *areno)
         ident = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
     }
+    Node *type = NULL;
+    if (parser_peek(parser).kind == Lex_Colon) {
+        type = parse_type_expr(parser, areno);
+        if (type == NULL) return NULL;
+    }
+
     parser_expect(parser, Lex_Equal);
 
     Node *expr = NULL;
@@ -436,6 +502,7 @@ Node *parse_stmt_assign(Parser *parser, Areno *areno)
             .kind  = assign_kind,
             .ident = sv_copy(&ident.ident, areno),
             .value = expr,
+            .type  = type
         },
     };
 
@@ -642,7 +709,8 @@ Node *parse_terminal(Parser *parser, Areno *areno)
                 current.row,
                 current.col,
                 lex_print(current.kind));
-        assert(0 && "[TODO] ERROR HANDLING");
+        assert(0 && "[TODO] ERROR HANDLING (parse_terminal)");
+        return NULL;
     }
 
     if (node == NULL) return NULL;
@@ -698,6 +766,26 @@ void dump_node(Node *node, int level)
             printf("[ERROR] Printing invalid node\n");
             abort();
 
+        case NodeKind_Type: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Type: ");
+
+            if (node->type.success_set) {
+                if (node->type.success.nullable) {
+                    printf("?");
+                }
+                printf("%.*s", (int) node->type.success.ident.len, node->type.success.ident.items);
+            }
+            if (node->type.error_set) {
+                printf("!");
+                if (node->type.error.nullable) {
+                    printf("?");
+                }
+                printf("%.*s", (int) node->type.error.ident.len, node->type.error.ident.items);
+            }
+            printf("\n");
+        } break;
+
         case NodeKind_Funcdef: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Function Def:\n");
@@ -721,10 +809,35 @@ void dump_node(Node *node, int level)
                     printf("Type: %.*s\n", (int)arg.type.len, arg.type.items);
                 }
             }
+            // type
+            dump_node(node->funcdef.return_type, level + 1);
             // body
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Body:\n");
             dump_node(node->funcdef.block, level + 2);
+        } break;
+
+        case NodeKind_Assignement: {
+            const char *kind = node->assignement.kind == AssignKind_Let
+                ? "let"
+                : node->assignement.kind == AssignKind_Const
+                ? "const"
+                : "reassign";
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Assignation (%s):\n", kind);
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Name: %.*s\n",
+                    (int)node->assignement.ident.len,
+                    node->assignement.ident.items);
+
+            if (node->assignement.type->type.success_set || node->assignement.type->type.error_set) {
+                dump_node(node->assignement.type, level + 1);
+            }
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Value:\n");
+            dump_node(node->assignement.value, level + 2);
         } break;
 
         case NodeKind_Block: {
@@ -765,25 +878,6 @@ void dump_node(Node *node, int level)
 
         case NodeKind_Expression: {
             dump_expression(node->expression, level);
-        } break;
-
-        case NodeKind_Assignement: {
-            const char *kind = node->assignement.kind == AssignKind_Let
-                ? "let"
-                : node->assignement.kind == AssignKind_Const
-                ? "const"
-                : "reassign";
-            for (int i = 0; i < level; i++) printf(" ");
-            printf("Assignation (%s):\n", kind);
-
-            for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Name: %.*s\n",
-                    (int)node->assignement.ident.len,
-                    node->assignement.ident.items);
-
-            for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Value:\n");
-            dump_node(node->assignement.value, level + 2);
         } break;
 
     }

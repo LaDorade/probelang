@@ -4,14 +4,9 @@ program      ::= { top-statement } ;
 top-statement  ::=
     | top-funcdef
     | top-assign ;
-top-funcdef    ::= term-ident '::' '(' ')' block ;
-top-assign     ::=
-    | const-assign
-    | let-assign 
-    | top-reassign;
-const-assign   ::= 'const' ident '=' top-expr;
-let-assign     ::= 'let'   ident '=' top-expr;
-top-reassign   ::= ident '=' top-expr;
+top-funcdef    ::= term-ident '::' '(' { argument } ')' ':' type-expr block ;
+argument       ::= term-ident ':' type-expr ;
+top-assign     ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' top-expr ;
 top-expr       ::= top-expr-equal ;
 top-expr-equal ::= top-expr-add   { ('<' | '>' | '==' | '!=' | '<=' | '>=') top-expr-add } ;
 top-expr-add   ::= top-expr-mul   { ('+' | '-')                             top-expr-mul } ;
@@ -23,20 +18,19 @@ top-expr-prim  ::= '(' top-expr ')' | terminal ;
 block        ::= '{' { statement | bloc-defer } '}';
 bloc-defer   ::= 'defer' statement
 
+# Types
+type-expr     ::= term-optional [ '!' type-optional ] ;
+type-optional ::= [ '?' ] term-ident ;
+
 # Statements
-statement    ::=
+statement     ::=
     | stmt-assign [ ';' ]
     | stmt-if
     | stmt-while
     | block
     | expression [ ';' ]
 ;
-stmt-assign   ::=
-    | stmt-let
-    | stmt-const
-    | stmt-reassign
-stmt-let      ::= 'let'   ident '=' expression | block ;
-stmt-const    ::= 'const' ident '=' expression | block ;
+stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
 stmt-reassign ::= ident '=' expression | block ;
 stmt-if       ::= 'if'    ((['('] expression [')']) | expression) statement ['else' statement] ;
 stmt-while    ::= 'while' ((['('] expression [')']) | expression) statement ;

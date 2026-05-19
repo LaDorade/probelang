@@ -295,7 +295,7 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Divide:        return "/";
         case Lex_Modulo:        return "%";
         case Lex_Bang:          return "!";
-        case Lex_Question:      return "!";
+        case Lex_Question:      return "?";
         case Lex_Equal:         return "=";
         case Lex_Lower:         return "<";
         case Lex_Greater:       return ">";

@@ -34,6 +34,11 @@ typedef struct {
 } Parser;
 
 typedef struct {
+    Node  *items;
+    size_t count;
+} Node_Block;
+
+typedef struct {
     String_View name;
     String_View type;
 } Arg;
@@ -44,15 +49,40 @@ typedef struct {
 } Args;
 
 typedef struct {
-    Node  *items;
-    size_t count;
-} Node_Block;
+    bool success_set;
+    struct {
+        bool        nullable;
+        String_View ident;
+    } success;
+
+    bool error_set;
+    struct {
+        bool        nullable;
+        String_View ident;
+    } error;
+} Node_Type;
 
 typedef struct {
     String_View name;
     Args        args;
+    Node       *return_type;
     Node       *block;
 } Node_Funcdef;
+
+typedef enum {
+    AssignKind_Invalid = 0,
+
+    AssignKind_Let,
+    AssignKind_Const,
+    AssignKind_Reassign,
+} Assign_Kind;
+
+typedef struct {
+    Assign_Kind kind;
+    String_View ident;
+    Node       *type;
+    Node       *value; // expression or block
+} Node_Assignement;
 
 typedef struct {
     Node *condition; // expression
@@ -66,23 +96,6 @@ typedef struct {
 } Node_While;
 
 typedef enum {
-    AssignKind_Invalid = 0,
-
-    AssignKind_Let,
-    AssignKind_Const,
-    AssignKind_Reassign,
-} Assign_Kind;
-
-typedef struct {
-    Assign_Kind kind;
-    String_View ident;
-
-    // expression or block
-    // sem analysis will check if block ok
-    Node *value; 
-} Node_Assignement;
-
-typedef enum {
     NodeKind_Invalid = 0,
 
     NodeKind_Funcdef,
@@ -91,6 +104,7 @@ typedef enum {
     NodeKind_If,
     NodeKind_While,
     NodeKind_Expression,
+    NodeKind_Type,
 
     NodeKind_LastNode,
 } Node_Kind;
@@ -103,6 +117,7 @@ struct Node {
         Node_Assignement assignement;
         Node_If          if_node;
         Node_While       while_node;
+        Node_Type        type;
         Expr            *expression;
     };
 };
@@ -165,6 +180,8 @@ Node *parse_top_assign   (Parser *parser, Areno *areno); // TODO!
 // Block
 Node *parse_block        (Parser *parser, Areno *areno);
 Node *parse_bloc_defer   (Parser *parser, Areno *areno); // TODO!
+
+Node *parse_type_expr    (Parser *parser, Areno *areno);
 
 // Statement
 Node *parse_statement    (Parser *parser, Areno *areno);

@@ -31,7 +31,7 @@ typedef enum {
     Lex_Divide,        // /
     Lex_Modulo,        // %
     Lex_Bang,          // !
-    Lex_Question,      // !
+    Lex_Question,      // ?
     Lex_Equal,         // =
     Lex_Lower,         // <
     Lex_Greater,       // >
