@@ -98,7 +98,7 @@ typedef struct {
         int         number;
         String_View string;
         String_View ident;
-    };
+    } as;
 } Token;
 
 Token*      lexer_lex(Lexer* lexer, Areno* areno);

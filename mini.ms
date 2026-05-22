@@ -1,4 +1,4 @@
 main :: (): void {
-    let 32: error!?i32 = 32;
+    let snoup: i32!error = 32;
 }
 

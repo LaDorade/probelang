@@ -230,6 +230,8 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = Lex_let;
             else if (strcmp(wordBuf, "const")  == 0)
                 tok.kind = Lex_const;
+            else if (strcmp(wordBuf, "defer") == 0)
+                tok.kind = Lex_defer;
             else if (strcmp(wordBuf, "return") == 0)
                 tok.kind = Lex_return;
             else if (strcmp(wordBuf, "reject") == 0)
@@ -348,28 +350,6 @@ const char* lex_print(Lexeme lexeme)
     return "UNREACHABLE";
 }
 
-char *str_printf(Areno *areno, const char *fmt, ...) {
-    va_list args;
-    va_list args2;
-
-    va_start(args, fmt);
-    va_copy(args2, args);
-    va_start(args2, fmt);
-
-    int size  = vsnprintf(NULL, 0, fmt, args);
-    va_end(args);
-    if (size < 0) {
-        va_end(args2);
-        return NULL;
-    }
-
-    char *str = areno_alloc(areno, size);
-    vsnprintf(str, size + 1, fmt, args2);
-
-    va_end(args2);
-    return str;
-}
-
 // Return a NULL terminated string representing the token
 char *token_print(const Token *tok, Areno *areno)
 {
@@ -380,13 +360,13 @@ char *token_print(const Token *tok, Areno *areno)
     const char *default_format = "'%s'";
 
     if (tok->kind == Lex_Ident) {
-        str = str_printf(areno, string_format, lexeme, (int)tok->ident.len, tok->ident.items);
+        str = areno_printf(areno, string_format, lexeme, (int)tok->ident.len, tok->ident.items);
     } else if (tok->kind == Lex_String) {
-        str = str_printf(areno, string_format, lexeme, (int)tok->string.len, tok->string.items);
+        str = areno_printf(areno, string_format, lexeme, (int)tok->string.len, tok->string.items);
     } else if (tok->kind == Lex_Number){
-        str = str_printf(areno, number_format, lexeme, tok->number);
+        str = areno_printf(areno, number_format, lexeme, tok->number);
     } else {
-        str = str_printf(areno, default_format, lexeme);
+        str = areno_printf(areno, default_format, lexeme);
     }
 
     return str;
