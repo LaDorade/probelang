@@ -11,6 +11,8 @@
 #define __ARENO_H_
 
 #include <stdlib.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 #ifndef  ARENO_ASSERT
 #include <assert.h>
@@ -36,9 +38,10 @@ typedef struct Areno {
 	size_t count;
 } Areno;
 
-void *areno_alloc(Areno* areno, size_t size_in_byte);
-void  areno_reset(Areno* areno);
-void  areno_free (Areno* areno);
+void *areno_alloc (Areno* areno, size_t size_in_byte);
+void  areno_reset (Areno* areno);
+void  areno_free  (Areno* areno);
+char *areno_printf(Areno* areno, const char *fmt, ...);
 
 #endif // __ARENO_H_
 
@@ -126,4 +129,27 @@ void areno_reset(Areno* areno)
 	}
 }
 
+char *areno_printf(Areno* areno, const char *fmt, ...)
+{
+    va_list args;
+    va_list args2;
+
+    va_start(args, fmt);
+    va_copy(args2, args);
+    va_start(args2, fmt);
+
+    int size  = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+    if (size < 0) {
+        va_end(args2);
+        return NULL;
+    }
+
+    char *str = areno_alloc(areno, size);
+    vsnprintf(str, size + 1, fmt, args2);
+
+    va_end(args2);
+
+    return str;
+}
 #endif // ARENO_IMPLEMENTATION

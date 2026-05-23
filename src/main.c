@@ -33,7 +33,6 @@ int main(void)
     }
 
     Areno lex_areno   = {0};
-    Areno parse_areno = {0};
 
     Lexer lexer = (Lexer) {
         .sv = (String_View) {
@@ -50,16 +49,17 @@ int main(void)
         .cursor = 0,
     };
 
-    Node *prog = parser_parse(&parser, &parse_areno);
+    Node *prog = parser_parse(&parser);
+    areno_free(&lex_areno);
     if (prog == NULL) {
         printf("Error while parsing:\n%s", parser.err.formatted);
+        parser_free(&parser);
         return 1;
     }
 
     dump_node(prog, 0);
 
-    areno_free(&lex_areno  );
-    areno_free(&parse_areno);
+    parser_free(&parser);
 
     return 0;
 }

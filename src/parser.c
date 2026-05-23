@@ -9,7 +9,7 @@
 #define MAX_ARGS 10
 #define BUF_SIZE 1024
 
-String_View sv_copy(String_View *src, Areno *areno)
+String_View sv_copy(Areno *areno, String_View *src)
 {
     size_t len  = src->len;
     char *items = (char *) areno_alloc(areno, len);
@@ -79,115 +79,108 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
         const char* lexeme_str = lex_print(lexeme);
         const char* prev_str   = lex_print(prev.kind);
         const char* curr_str   = lex_print(current.kind);
-        String_View line       = sv_get_line(parser->sv, prev.row);
 
-        // TODO: use areno instead of malloc
-        // Set areno inside the Parser ?
-        char *err_msg = malloc(BUF_SIZE);
-        if (err_msg == NULL) goto error;
-
-        int cx = 0;
-        cx += snprintf(err_msg + cx, BUF_SIZE - cx, "\n");
-        if (cx < 0)     goto error;
-        if (prev.kind != Lex_Invalid && prev.row != current.row) {
-            cx += snprintf(err_msg + cx, BUF_SIZE - cx, ">  %.*s\n", (int)line.len, line.items);
-            if (cx < 0) goto error;
-        }
-        line = sv_get_line(parser->sv, current.row);
-        cx += snprintf(err_msg + cx, BUF_SIZE - cx, ">  %.*s\n", (int)line.len, line.items);
-        if (cx < 0)     goto error;
-        cx += snprintf(err_msg + cx, BUF_SIZE - cx, ">  %*c", (int)current.col, '^');
-        if (cx < 0)     goto error;
-        for (size_t i = 1; i < strlen(curr_str); i++) {
-            cx += snprintf(err_msg + cx, BUF_SIZE - cx, "^");
-            if (cx < 0) goto error;
-        }
-        cx += snprintf(err_msg + cx, BUF_SIZE - cx, "\n");
-        if (cx < 0)     goto error;
-        cx += snprintf(err_msg + cx, BUF_SIZE - cx, "\n");
-        if (cx < 0)     goto error;
-
-        snprintf(err_msg + cx, BUF_SIZE - cx,
+        char *err_msg = areno_printf(&parser->areno,
                 "Expected '%s' after '%s' at %zu:%zu, got '%s'\n",
                 lexeme_str,
                 prev_str,
                 current.row,
                 current.col,
                 curr_str);
-        if (cx < 0) goto error;
-        parser->err = (Parse_Error) {
-            .code = Parse_Err_UnexpectedToken,
-            .formatted = err_msg,
-            .row = current.row,
-            .col = current.col,
-        };
-        return false;
-error:
-        parser->err = (Parse_Error) {
-            .code = Parse_Err_AllocError,
-            .formatted = "Error allocating space",
-            .row = current.row,
-            .col = current.col,
-        };
-        err_msg = "Error allocating space";
+
+        parser_prepare_error(parser, err_msg, Parse_Err_UnexpectedToken);
         return false;
     }
     return true;
 }
 
+// Take current token, and wrap error
+void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
+{
+    Token current = parser_peek(parser);
+    parser->err = (Parse_Error) {
+        .code      = msg == NULL ? Parse_Err_AllocError : kind,
+        .formatted = msg == NULL ? "Error alloc memory" : msg,
+        .row = current.row,
+        .col = current.col,
+    };
+}
+
+void parser_free(Parser *parser)
+{
+    areno_free(&parser->areno);
+}
+
+Node *parser_create_nodes(Parser *parser, size_t nb)
+{
+    Node *nodes = (Node*) areno_alloc(&parser->areno, sizeof(Node) * nb);
+    memset(nodes, 0, sizeof(Node) * nb);
+    return nodes;
+}
+Node *parser_create_node(Parser *parser, Node_Kind kind)
+{
+    Node *node = (Node*) parser_create_nodes(parser, 1);
+    node->kind = kind;
+    return node;
+}
+Expr *parser_create_expr(Parser *parser, Expr_Kind kind)
+{
+    Expr *expr = (Expr*) areno_alloc(&parser->areno, sizeof(Expr));
+    memset(expr, 0, sizeof(Expr));
+    expr->kind = kind;
+    return expr;
+}
+
 //////////////////////////////////////////////////////////
 
-Node *parser_parse(Parser *parser, Areno *areno)
+Node *parser_parse(Parser *parser)
 {
-    Node *program;
-    program = areno_alloc(areno, sizeof(Node)),
-    *program = (Node) {
-        .kind = NodeKind_Block,
-        .statements = (Node_Block) {
-            .count = 0,
-            .items = (Node*) areno_alloc(areno, sizeof(Node) * BUF_SIZE),
-        },
+    Node *program = parser_create_node(parser, NodeKind_Block);
+    program->as.block = (Node_Block) {
+        .count = 0,
+        .items = parser_create_nodes(parser, BUF_SIZE),
     };
 
     Token current;
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
-        Node *func = parse_top_funcdef(parser, areno);
+        Node *func = parse_top_funcdef(parser);
         if (func == NULL) return NULL;
-        program->statements.items[program->statements.count++] = *func;
+        program->as.block.items[program->as.block.count++] = *func;
     }
     return program;
 }
 
-Node *parse_top_statement(Parser *parser, Areno *areno)
+Node *parse_top_statement(Parser *parser)
 {
     Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
     if (current.kind == Lex_Invalid) {
         current = parser_peek(parser);
-        printf("ERROR at %zu:%zu: Expected top-level-statement, found: '%s'\n",
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected top-level-statement, found: '%s'\n",
                 current.row,
                 current.col,
                 lex_print(current.kind));
-        assert(0 && "[TODO] ERROR HANDLING");
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
     } else if (current.kind == Lex_const || current.kind == Lex_let) {
-        Node *node = parse_top_assign(parser, areno);
+        Node *node = parse_top_assign(parser);
         if (node == NULL) return NULL;
         return node;
     } else if (current.kind == Lex_Ident){ // ident
-        Node *node = parse_top_funcdef(parser, areno);
+        Node *node = parse_top_funcdef(parser);
         if (node == NULL) return NULL;
         return node;
     }
-    assert(0 && "[UNREACHABLE] top level statement");
+    parser_prepare_error(parser, "[UNREACHABLE] top statement\n", Parse_Err_Unreachable);
     return NULL;
 }
 
-Node *parse_top_assign(Parser *parser, Areno *areno) 
+Node *parse_top_assign(Parser *parser) 
 {
-    assert(0 && "[TODO] top level assign");
+    parser_prepare_error(parser, "[TODO] top level assign\n", Parse_Err_Todo);
     return NULL;
 }
 
-Node *parse_top_funcdef(Parser *parser, Areno *areno)
+Node *parse_top_funcdef(Parser *parser)
 {
     Token funcname = parser_peek(parser);
     parser_expect(parser, Lex_Ident);
@@ -197,7 +190,7 @@ Node *parse_top_funcdef(Parser *parser, Areno *areno)
     parser_expect(parser, Lex_Open_bracket);
 
     Args args = {0};
-    args.items = areno_alloc(areno, sizeof(Arg) * MAX_ARGS);
+    args.items = areno_alloc(&parser->areno, sizeof(Arg) * MAX_ARGS);
     while (!parser_match(parser, Lex_Close_bracket).kind) {
         Token arg_name = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
@@ -207,8 +200,8 @@ Node *parse_top_funcdef(Parser *parser, Areno *areno)
         parser_expect(parser, Lex_Ident);
 
         args.items[args.count++] = (Arg) {
-            .name = sv_copy(&arg_name.ident, areno),
-            .type = sv_copy(&arg_type.ident, areno),
+            .name = sv_copy(&parser->areno, &arg_name.as.ident),
+            .type = sv_copy(&parser->areno, &arg_type.as.ident),
         };
 
         // this allow trailing coma
@@ -218,35 +211,31 @@ Node *parse_top_funcdef(Parser *parser, Areno *areno)
         }
     }
 
-    // TODO: return type
+    Node *type = parse_type_expr(parser);
+    if (type == NULL) return NULL;
     
     // expect a block
-    Node *body = parse_block(parser, areno);
+    Node *body = parse_block(parser);
     if (body == NULL) return NULL;
     
-    Node *function = areno_alloc(areno, sizeof(Node));
-    *function = (Node) {
-        .kind = NodeKind_Funcdef,
-        .funcdef = (Node_Funcdef) {
-            .name  = sv_copy(&funcname.ident, areno),
-            .args  = args,
-            .block = body,
-        }
+    Node *node = parser_create_node(parser, NodeKind_Funcdef);
+    node->as.funcdef = (Node_Funcdef) {
+        .name        = sv_copy(&parser->areno, &funcname.as.ident),
+        .args        = args,
+        .block       = body,
+        .return_type_node = type,
     };
-    return function;
+    return node;
 }
 
-Node *parse_block(Parser *parser, Areno *areno)
+Node *parse_block(Parser *parser)
 {
     parser_expect(parser, Lex_Open_brace);
 
-    Node *block = areno_alloc(areno, sizeof(Node));
-    *block = (Node) {
-        .kind = NodeKind_Block,
-        .statements = (Node_Block) {
-            .count = 0,
-            .items = (Node*) areno_alloc(areno, sizeof(Node) * BUF_SIZE),
-        },
+    Node *node = parser_create_node(parser, NodeKind_Block);
+    node->as.block = (Node_Block) {
+        .count = 0,
+        .items = parser_create_nodes(parser, BUF_SIZE)
     };
 
     Token current;
@@ -254,46 +243,48 @@ Node *parse_block(Parser *parser, Areno *areno)
         if (current.kind == Lex_Close_brace) {
             break;
         } else if (current.kind == Lex_defer) {
-            assert(0 && "TODO: block defer");
+            Node *defer = parse_bloc_defer(parser);
+            if (defer == NULL) return NULL;
+            node->as.block.items[node->as.block.count++] = *defer;
         } else {
-            Node *node = parse_statement(parser, areno);
-            if (node == NULL) return NULL;
-            block->statements.items[block->statements.count++] = *node;
+            Node *stmt = parse_statement(parser);
+            if (stmt == NULL) return NULL;
+            node->as.block.items[node->as.block.count++] = *stmt;
         }
     }
 
     parser_expect(parser, Lex_Close_brace);
 
-    return block;
+    return node;
 }
 
-Node *parse_block_defer(Parser *parser, Areno *areno)
+Node *parse_bloc_defer(Parser *parser)
 {
-    assert("[TODO] block defer");
+    parser_prepare_error(parser, "[TODO] block defer\n", Parse_Err_Todo);
     return NULL;
 }
 
-Node *parse_statement(Parser *parser, Areno *areno)
+Node *parse_statement(Parser *parser)
 {
     Token current = parser_peek(parser);
     if (current.kind == Lex_Open_brace) { // { ... } -- block
-        Node *node = parse_block(parser, areno);
+        Node *node = parse_block(parser);
         if (node == NULL) return NULL;
         return node;
     } else if (current.kind == Lex_Ident) {
         Token next = parser_lookahead(parser, 1);
         if (next.kind == Lex_Equal) { // x = ...; -- reassign
-            Node *node = parse_stmt_assign(parser, areno);
+            Node *node = parse_stmt_assign(parser);
             if (node == NULL) return NULL;
             parser_match(parser, Lex_Semicolon);
             return node;
         } else if (next.kind == Lex_Colon_Colon) {
             // fn :: (): type {} -- function definition
-            Node *node = parse_top_funcdef(parser, areno);
+            Node *node = parse_top_funcdef(parser);
             if (node == NULL) return NULL;
             return node;
         } else { // expr or funcall
-            Node *expr = parse_expression(parser, areno);
+            Node *expr = parse_expression(parser);
             if (expr == NULL) return NULL;
             // to allow call of funciton raw like "printf(...);"
             // or just raw expressions
@@ -301,101 +292,140 @@ Node *parse_statement(Parser *parser, Areno *areno)
             return expr;
         }
     } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
-        Node *node = parse_stmt_assign(parser, areno);
+        Node *node = parse_stmt_assign(parser);
         if (node == NULL) return NULL;
         parser_match(parser, Lex_Semicolon);
         return node;
     } else if (current.kind == Lex_if) { // if ...
-        Node *node = parse_stmt_if(parser, areno);
+        Node *node = parse_stmt_if(parser);
         if (node == NULL) return NULL;
         return node;
     } else if (current.kind == Lex_while) { // while ...
-        Node *node = parse_stmt_while(parser, areno);
+        Node *node = parse_stmt_while(parser);
         if (node == NULL) return NULL;
         return node;
     }
 
-    Node *expr = parse_expression(parser, areno);
+    Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
     parser_match(parser, Lex_Semicolon);
     return expr;
 }
 
-Node *parse_stmt_if(Parser *parser, Areno *areno)
+Node *parse_stmt_if(Parser *parser)
 {
-    Node tmp = {
-        .kind = NodeKind_If,
-        .if_node = (Node_If) {
-            .condition = NULL,
-            .ok_node   = NULL,
-            .ko_node   = NULL, // sem analysis must check if there is an else
-        },
-    };
+    Node *node = parser_create_node(parser, NodeKind_If);
 
     /* Parse if exmpression */
     parser_expect(parser, Lex_if);
     bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
-    Node *expr = parse_expression(parser, areno);
+    Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
-    tmp.if_node.condition = expr;
+    node->as.if_node.condition = expr;
     if (used_bracket) parser_expect(parser, Lex_Close_bracket);
 
     /* Parse if nodé */
-    Node *if_node = parse_statement(parser, areno);
+    Node *if_node = parse_statement(parser);
     if (if_node == NULL) return NULL;
-    tmp.if_node.ok_node = if_node;
+    node->as.if_node.ok_node = if_node;
 
     /* Parse else nodé */
     if (parser_match(parser, Lex_else).kind != Lex_Invalid) {
-        Node *else_block = parse_statement(parser, areno);
+        Node *else_block = parse_statement(parser);
         if (else_block == NULL) return NULL;
-        tmp.if_node.ko_node = else_block;
+        node->as.if_node.ko_node = else_block;
     }
 
-    Node *node = areno_alloc(areno, sizeof(Node));
-    *node = tmp;
     return node;
 }
 
-Node *parse_stmt_while(Parser *parser, Areno *areno)
+Node *parse_stmt_while(Parser *parser)
 {
-    Node tmp = {
-        .kind = NodeKind_While,
-        .while_node = (Node_While) {
-            .condition = NULL,
-            .ok_node   = NULL,
-        },
-    };
+    Node *node = parser_create_node(parser, NodeKind_While);
 
     /* Parse while exmpression */
     parser_expect(parser, Lex_while);
     bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
-    Node *expr = parse_expression(parser, areno);
+    Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
-    tmp.while_node.condition = expr;
+    node->as.while_node.condition = expr;
     if (used_bracket) parser_expect(parser, Lex_Close_bracket);
 
     /* Parse while nodé */
-    Node *while_node = parse_statement(parser, areno);
+    Node *while_node = parse_statement(parser);
     if (while_node == NULL) return NULL;
-    tmp.while_node.ok_node = while_node;
+    node->as.while_node.ok_node = while_node;
 
-    Node *node = areno_alloc(areno, sizeof(Node));
-    *node = tmp;
     return node;
 }
 
-// stmt-assign  ::= [ 'let' ] ident '=' expression | block
-Node *parse_stmt_assign(Parser *parser, Areno *areno)
+// type-expr     ::= term-optional [ '!' type-optional ] ;
+// type-optional ::= [ '?' ] term-ident ;
+Node *parse_type_expr(Parser *parser)
+{
+    Node *node = parser_create_node(parser, NodeKind_Type);
+    parser_expect(parser, Lex_Colon);
+
+    Token current;
+    bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
+    if (nullable && parser_peek(parser).kind != Lex_Ident) {
+        current = parser_peek(parser);
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
+                current.row,
+                current.col,
+                lex_print(current.kind));
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
+    }
+    if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
+        node->as.type.success_set      = true;
+        node->as.type.success.ident    = sv_copy(&parser->areno, &current.as.ident);
+        node->as.type.success.nullable = nullable;
+    }
+
+    if (parser_match(parser, Lex_Bang).kind != Lex_Invalid) {
+        bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
+        if (nullable && parser_peek(parser).kind != Lex_Ident) {
+            current = parser_peek(parser);
+            char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
+                    current.row,
+                    current.col,
+                    lex_print(current.kind));
+            parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+            return NULL;
+        }
+        if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
+            node->as.type.error_set      = true;
+            node->as.type.error.ident    = sv_copy(&parser->areno, &current.as.ident);
+            node->as.type.error.nullable = nullable;
+        }
+    }
+
+    if (!node->as.type.success_set && !node->as.type.error_set) {
+        current = parser_peek(parser);
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
+                current.row,
+                current.col,
+                lex_print(current.kind));
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
+    }
+
+    return node;
+}
+
+// stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
+Node *parse_stmt_assign(Parser *parser)
 {
     Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
     if (current.kind == Lex_Invalid) {
         current = parser_peek(parser);
-        printf("ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
                 current.row,
                 current.col,
                 lex_print(current.kind));
-        assert(0 && "[TODO] ERROR HANDLING (stmt-assign)");
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
     }
 
     Assign_Kind assign_kind = AssignKind_Invalid;
@@ -415,42 +445,46 @@ Node *parse_stmt_assign(Parser *parser, Areno *areno)
         ident = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
     }
+    Node *type = NULL;
+    if (parser_peek(parser).kind == Lex_Colon) {
+        type = parse_type_expr(parser);
+        if (type == NULL) return NULL;
+    }
+
     parser_expect(parser, Lex_Equal);
 
     Node *expr = NULL;
     // parse as block
     if (parser_peek(parser).kind == Lex_Open_brace) {
-        Node *block = parse_block(parser, areno);
+        Node *block = parse_block(parser);
         if (block == NULL) return NULL;
         expr = block;
     } else { // parse as expression
-        Node *node_expr = parse_expression(parser, areno);
+        Node *node_expr = parse_expression(parser);
         if (node_expr == NULL) return NULL;
         expr = node_expr;
     }
 
-    Node *node = areno_alloc(areno, sizeof(Node));
-    *node = (Node) {
-        .kind = NodeKind_Assignement,
-        .assignement = (Node_Assignement) {
-            .kind  = assign_kind,
-            .ident = sv_copy(&ident.ident, areno),
-            .value = expr,
-        },
+    Node *node = parser_create_node(parser, NodeKind_Assignement);
+    node->as.assignement = (Node_Assignement) {
+        .kind       = assign_kind,
+        .ident      = sv_copy(&parser->areno, &ident.as.ident),
+        .value_node = expr,
+        .type_node  = type
     };
 
     return node;
 }
 
-Node *parse_expression(Parser *parser, Areno *areno)
+Node *parse_expression(Parser *parser)
 {
-    return parse_expr_equal(parser, areno);
+    return parse_expr_equal(parser);
 }
 
 // x == y >= z
-Node *parse_expr_equal(Parser *parser, Areno *areno)
+Node *parse_expr_equal(Parser *parser)
 {
-    Node *lhs = parse_expr_add(parser, areno);
+    Node *lhs = parse_expr_add(parser);
     if (lhs == NULL) return NULL;
 
     Token current;
@@ -459,135 +493,115 @@ Node *parse_expr_equal(Parser *parser, Areno *areno)
             Lex_Greater_Equal, Lex_Lower_Equal)
         ).kind != Lex_Invalid)
     {
-        Node *rhs = parse_expr_add(parser, areno);
+        Node *rhs = parse_expr_add(parser);
         if (rhs == NULL) return NULL;
 
-        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *binop = (Expr) {
-            .kind = Expr_Binary,
-            .binary_op = (Binary_Op) {
-                .lhs     = lhs,
-                .rhs     = rhs,
-                .operand = current.kind,
-            }
+        Expr *expr = parser_create_expr(parser, Expr_Binary);
+        expr->as.binary_op = (Binary_Op) {
+            .lhs     = lhs,
+            .rhs     = rhs,
+            .operand = current.kind,
         };
 
-        Node *comp = areno_alloc(areno, sizeof(Node));
-        *comp = (Node) {
-            .kind = NodeKind_Expression,
-            .expression = binop,
-        };
+        Node *node = parser_create_node(parser, NodeKind_Expression);
+        node->as.expression = expr;
 
-        lhs = comp;
+        lhs = node;
     }
     return lhs;
 }
 
 // x + y - 23
-Node *parse_expr_add(Parser *parser, Areno *areno)
+Node *parse_expr_add(Parser *parser)
 {
-    Node *lhs = parse_expr_mul(parser, areno);
+    Node *lhs = parse_expr_mul(parser);
     if (lhs == NULL) return NULL;
 
     Token current;
     while ((current = parser_match(parser, Lex_Plus, Lex_Minus)).kind != Lex_Invalid) {
-        Node *rhs = parse_expr_mul(parser, areno);
+        Node *rhs = parse_expr_mul(parser);
         if (rhs == NULL) return NULL;
 
-        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *binop = (Expr) {
-            .kind = Expr_Binary,
-            .binary_op = (Binary_Op) {
-                .lhs     = lhs,
-                .rhs     = rhs,
-                .operand = current.kind,
-            }
-        };
-        Node *add = areno_alloc(areno, sizeof(Node));
-        *add = (Node) {
-            .kind = NodeKind_Expression,
-            .expression = binop,
+        Expr *expr = parser_create_expr(parser, Expr_Binary);
+        expr->as.binary_op = (Binary_Op) {
+            .lhs     = lhs,
+            .rhs     = rhs,
+            .operand = current.kind,
         };
 
-        lhs = add;
+        Node *node = parser_create_node(parser, NodeKind_Expression);
+        node->as.expression = expr;
+
+        lhs = node;
     }
     return lhs;
 }
 
 // expr-mul     ::= expr-unary { ('*' | '/' | '%') expr-unary }
-Node *parse_expr_mul(Parser *parser, Areno *areno)
+Node *parse_expr_mul(Parser *parser)
 {
-    Node *lhs = parse_expr_unary(parser, areno);
+    Node *lhs = parse_expr_unary(parser);
     if (lhs == NULL) return NULL;
 
     Token current;
     while ((current = parser_match(parser, Lex_Mul, Lex_Divide, Lex_Modulo)).kind != Lex_Invalid) {
-        Node *rhs = parse_expr_unary(parser, areno);
+        Node *rhs = parse_expr_unary(parser);
         if (rhs == NULL) return NULL;
 
-        Expr *binop = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *binop = (Expr) {
-            .kind = Expr_Binary,
-            .binary_op = (Binary_Op) {
-                .lhs     = lhs,
-                .rhs     = rhs,
-                .operand = current.kind,
-            }
-        };
-        Node *mul = areno_alloc(areno, sizeof(Node));
-        *mul = (Node) {
-            .kind = NodeKind_Expression,
-            .expression = binop,
+        Expr *expr = parser_create_expr(parser, Expr_Binary);
+        expr->as.binary_op = (Binary_Op) {
+            .lhs     = lhs,
+            .rhs     = rhs,
+            .operand = current.kind,
         };
 
-        lhs = mul;
+        Node *node = parser_create_node(parser, NodeKind_Expression);
+        node->as.expression = expr;
+
+        lhs = node;
     }
     return lhs;
 }
 
 // expr-unary   ::= { '!' | '-' } expr-primary
-Node *parse_expr_unary(Parser *parser, Areno *areno)
+Node *parse_expr_unary(Parser *parser)
 {
-    Node *node = NULL;
     Token current = parser_match(parser, Lex_Minus, Lex_Bang);
     if (current.kind != Lex_Invalid) {
-        node = areno_alloc(areno, sizeof(Node));
-        *node = (Node) {
-            .kind = NodeKind_Expression,
+
+        Expr *expr = parser_create_expr(parser, Expr_Unary);
+        expr->as.unary_op = (Unary_Op) {
+            .operand = current.kind,
+            .expr = parse_expr_primary(parser),
         };
 
-        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *expr = (Expr) {
-            .kind  = Expr_Unary,
-            .unary_op = {
-                .operand = current.kind,
-                .expr = parse_expr_primary(parser, areno),
-            },
-        };
-        node->expression = expr;
+        Node *node = parser_create_node(parser, NodeKind_Expression);
+        if (node == NULL) return NULL;
+
+        node->as.expression = expr;
+        return node;
     } else {
-        node = parse_expr_primary(parser, areno);
+        Node *node = parse_expr_primary(parser);
+        if (node == NULL) return NULL;
+        return node;
     }
-
-    if (node == NULL) return NULL;
-    return node;
 }
 
 // expr-primary ::= expr-funcall | '(' expression ')' | terminal
-Node *parse_expr_primary(Parser *parser, Areno *areno)
+Node *parse_expr_primary(Parser *parser)
 {
     Node *node = NULL;
     Token current = parser_peek(parser);
     if (current.kind == Lex_Ident && parser_lookahead(parser, 1).kind == Lex_Open_bracket) {
-        node = parse_expr_funcall(parser, areno);
+        node = parse_expr_funcall(parser);
         if (node == NULL) return NULL;
     } else if (current.kind == Lex_Open_bracket) {
         parser_expect(parser, Lex_Open_bracket);
-        node = parse_expression(parser, areno);
+        node = parse_expression(parser);
         if (node == NULL) return NULL;
         parser_expect(parser, Lex_Close_bracket);
     } else {
-        node = parse_terminal(parser, areno);
+        node = parse_terminal(parser);
         if (node == NULL) return NULL;
     }
     if (node == NULL) return NULL;
@@ -595,54 +609,41 @@ Node *parse_expr_primary(Parser *parser, Areno *areno)
 }
 
 // terminal     ::= term-ident | term-string | term-number
-Node *parse_terminal(Parser *parser, Areno *areno)
+Node *parse_terminal(Parser *parser)
 {
     Node *node = NULL;
     Token current = parser_peek(parser);
     if (current.kind == Lex_Ident) {
-        node = areno_alloc(areno, sizeof(Node));
-        *node = (Node) {
-            .kind = NodeKind_Expression,
-        };
-        // x
-        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *expr = (Expr) {
-            .kind  = Expr_Ident,
-            .ident = sv_copy(&current.ident, areno)
-        };
-        node->expression = expr;
         parser_expect(parser, Lex_Ident);
+        node = parser_create_node(parser, NodeKind_Expression);
+        // x
+        Expr *expr = parser_create_expr(parser, Expr_Ident);
+        expr->as.ident = sv_copy(&parser->areno, &current.as.ident);
+
+        node->as.expression = expr;
     } else if (current.kind == Lex_String) {
-        node = areno_alloc(areno, sizeof(Node));
-        *node = (Node) {
-            .kind = NodeKind_Expression,
-        };
-        // "snoup"
-        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *expr = (Expr) {
-            .kind  = Expr_String,
-            .ident = sv_copy(&current.string, areno)
-        };
-        node->expression = expr;
         parser_expect(parser, Lex_String);
+        node = parser_create_node(parser, NodeKind_Expression);
+        // "snoup"
+        Expr *expr = parser_create_expr(parser, Expr_String);
+        expr->as.str = sv_copy(&parser->areno, &current.as.string);
+
+        node->as.expression = expr;
     } else if (current.kind == Lex_Number) {
-        node = areno_alloc(areno, sizeof(Node));
-        *node = (Node) {
-            .kind = NodeKind_Expression,
-        };
-        Expr *expr = (Expr*) areno_alloc(areno, sizeof(Expr));
-        *expr = (Expr) {
-            .kind = Expr_Number,
-            .number = current.number,
-        };
-        node->expression = expr;
         parser_expect(parser, Lex_Number);
+        node = parser_create_node(parser, NodeKind_Expression);
+        // 23
+        Expr *expr = parser_create_expr(parser, Expr_Number);
+        expr->as.number = current.as.number;
+
+        node->as.expression = expr;
     } else {
-        printf("ERROR at %zu:%zu: Expected terminal, found: '%s'\n",
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected terminal, found: '%s'\n",
                 current.row,
                 current.col,
                 lex_print(current.kind));
-        assert(0 && "[TODO] ERROR HANDLING");
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
     }
 
     if (node == NULL) return NULL;
@@ -650,35 +651,29 @@ Node *parse_terminal(Parser *parser, Areno *areno)
 }
 
 // expr-funcall ::= term-indent '(' [ expression { ',' expression } [ ',' ] ] ')' ;
-Node *parse_expr_funcall(Parser *parser, Areno *areno)
+Node *parse_expr_funcall(Parser *parser)
 {
     Token function = parser_peek(parser);
     parser_expect(parser, Lex_Ident);
 
     parser_expect(parser, Lex_Open_bracket);
 
-    Expr *funcall = (Expr*) areno_alloc(areno, sizeof(Expr));
-    *funcall = (Expr) {
-        .kind = Expr_Funcall,
-        .funcall = (Funcall) {
-            .name = sv_copy(&function.string, areno),
-            .args = {
-                .count = 0,
-                .items = areno_alloc(areno, sizeof(Node) * MAX_ARGS),
-            }
+    Expr *expr = parser_create_expr(parser, Expr_Funcall);
+    expr->as.funcall = (Funcall) {
+        .name = sv_copy(&parser->areno, &function.as.string),
+        .args = {
+            .count = 0,
+            .items = parser_create_nodes(parser, MAX_ARGS),
         }
     };
 
-    Node *node = (Node*) areno_alloc(areno, sizeof(Node));
-    *node = (Node) {
-        .kind = NodeKind_Expression,
-        .expression = funcall,
-    };
+    Node *node = parser_create_node(parser, NodeKind_Expression);
+    node->as.expression = expr;
 
     while (!parser_match(parser, Lex_Close_bracket).kind) {
-        Node *arg = parse_expression(parser, areno);
+        Node *arg = parse_expression(parser);
         if (arg == NULL) return NULL;
-        funcall->funcall.args.items[funcall->funcall.args.count++] = *arg;
+        expr->as.funcall.args.items[expr->as.funcall.args.count++] = *arg;
 
         // this allow trailing coma
         if (!parser_match(parser, Lex_Comma).kind) {
@@ -698,21 +693,41 @@ void dump_node(Node *node, int level)
             printf("[ERROR] Printing invalid node\n");
             abort();
 
+        case NodeKind_Type: {
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Type: ");
+
+            if (node->as.type.success_set) {
+                if (node->as.type.success.nullable) {
+                    printf("?");
+                }
+                printf("%.*s", (int) node->as.type.success.ident.len, node->as.type.success.ident.items);
+            }
+            if (node->as.type.error_set) {
+                printf("!");
+                if (node->as.type.error.nullable) {
+                    printf("?");
+                }
+                printf("%.*s", (int) node->as.type.error.ident.len, node->as.type.error.ident.items);
+            }
+            printf("\n");
+        } break;
+
         case NodeKind_Funcdef: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Function Def:\n");
             // name
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Name: %.*s\n",
-                    (int)node->funcdef.name.len,
-                    node->funcdef.name.items);
+                    (int)node->as.funcdef.name.len,
+                    node->as.funcdef.name.items);
             // args
-            if (node->funcdef.args.count <= 0) {
+            if (node->as.funcdef.args.count <= 0) {
                 for (int i = 0; i < level + 2; i++) printf(" ");
                 printf("(no arguments)\n");
             } else {
-                for (size_t i = 0; i < node->funcdef.args.count; i++) {
-                    Arg arg = node->funcdef.args.items[i];
+                for (size_t i = 0; i < node->as.funcdef.args.count; i++) {
+                    Arg arg = node->as.funcdef.args.items[i];
                     for (int i = 0; i < level + 2; i++) printf(" ");
                     printf("Args %d\n", (int)i + 1);
                     for (int i = 0; i < level + 3; i++) printf(" ");
@@ -721,21 +736,46 @@ void dump_node(Node *node, int level)
                     printf("Type: %.*s\n", (int)arg.type.len, arg.type.items);
                 }
             }
+            // type
+            dump_node(node->as.funcdef.return_type_node, level + 1);
             // body
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Body:\n");
-            dump_node(node->funcdef.block, level + 2);
+            dump_node(node->as.funcdef.block, level + 2);
+        } break;
+
+        case NodeKind_Assignement: {
+            const char *kind = node->as.assignement.kind == AssignKind_Let
+                ? "let"
+                : node->as.assignement.kind == AssignKind_Const
+                ? "const"
+                : "reassign";
+            for (int i = 0; i < level; i++) printf(" ");
+            printf("Assignation (%s):\n", kind);
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Name: %.*s\n",
+                    (int)node->as.assignement.ident.len,
+                    node->as.assignement.ident.items);
+
+            if (node->as.assignement.type_node != NULL && (node->as.assignement.type_node->as.type.success_set || node->as.assignement.type_node->as.type.error_set)) {
+                dump_node(node->as.assignement.type_node, level + 1);
+            }
+
+            for (int i = 0; i < level + 1; i++) printf(" ");
+            printf("Value:\n");
+            dump_node(node->as.assignement.value_node, level + 2);
         } break;
 
         case NodeKind_Block: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Block:\n");
-            if (node->statements.count <= 0) {
+            if (node->as.block.count <= 0) {
                 for (int i = 0; i < level + 2; i++) printf(" ");
                 printf("(no statements)\n");
             } else {
-                for (size_t i = 0; i < node->statements.count; i++) {
-                    dump_node(&node->statements.items[i], level + 1);
+                for (size_t i = 0; i < node->as.block.count; i++) {
+                    dump_node(&node->as.block.items[i], level + 1);
                 }
             }
         } break;
@@ -745,12 +785,12 @@ void dump_node(Node *node, int level)
             printf("If:\n");
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Cond:\n");
-            dump_node(node->if_node.condition, level + 2);
-            dump_node(node->if_node.ok_node, level + 1);
-            if (node->if_node.ko_node != NULL) {
+            dump_node(node->as.if_node.condition, level + 2);
+            dump_node(node->as.if_node.ok_node, level + 1);
+            if (node->as.if_node.ko_node != NULL) {
                 for (int i = 0; i < level + 1; i++) printf(" ");
                 printf("Else\n");
-                dump_node(node->if_node.ko_node, level + 2);
+                dump_node(node->as.if_node.ko_node, level + 2);
             }
         } break;
 
@@ -759,31 +799,12 @@ void dump_node(Node *node, int level)
             printf("While:\n");
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Cond:\n");
-            dump_node(node->if_node.condition, level + 2);
-            dump_node(node->if_node.ok_node, level + 1);
+            dump_node(node->as.if_node.condition, level + 2);
+            dump_node(node->as.if_node.ok_node, level + 1);
         } break;
 
         case NodeKind_Expression: {
-            dump_expression(node->expression, level);
-        } break;
-
-        case NodeKind_Assignement: {
-            const char *kind = node->assignement.kind == AssignKind_Let
-                ? "let"
-                : node->assignement.kind == AssignKind_Const
-                ? "const"
-                : "reassign";
-            for (int i = 0; i < level; i++) printf(" ");
-            printf("Assignation (%s):\n", kind);
-
-            for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Name: %.*s\n",
-                    (int)node->assignement.ident.len,
-                    node->assignement.ident.items);
-
-            for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Value:\n");
-            dump_node(node->assignement.value, level + 2);
+            dump_expression(node->as.expression, level);
         } break;
 
     }
@@ -796,55 +817,55 @@ void dump_expression (Expr *expr, int level)
             for (int i = 0; i < level; i++) printf(" ");
             printf("Funcall:\n");
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Name: %.*s\n", (int)expr->funcall.name.len, expr->funcall.name.items);
+            printf("Name: %.*s\n", (int)expr->as.funcall.name.len, expr->as.funcall.name.items);
 
-            if (expr->funcall.args.count == 0) {
+            if (expr->as.funcall.args.count == 0) {
                 for (int i = 0; i < level + 1; i++) printf(" ");
                 printf("(no arguments)\n");
             } else {
-                for (size_t i = 0; i < expr->funcall.args.count; i++) {
+                for (size_t i = 0; i < expr->as.funcall.args.count; i++) {
                     for (int i = 0; i < level + 1; i++) printf(" ");
                     printf("Arg %zu\n", i + 1);
-                    dump_node(&expr->funcall.args.items[i], level + 2);
+                    dump_node(&expr->as.funcall.args.items[i], level + 2);
                 }
             }
         } break;
         case Expr_Number:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("Number: %d\n", expr->number);
+            printf("Number: %d\n", expr->as.number);
             break;
         case Expr_Binary:
             for (int i = 0; i < level; i++) printf(" ");
             printf("Binary:\n");
 
-            dump_node(expr->binary_op.lhs, level + 1);
+            dump_node(expr->as.binary_op.lhs, level + 1);
 
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Operator: %s\n", lex_print((Lexeme) expr->binary_op.operand));
+            printf("Operator: %s\n", lex_print((Lexeme) expr->as.binary_op.operand));
 
-            dump_node(expr->binary_op.rhs, level + 1);
+            dump_node(expr->as.binary_op.rhs, level + 1);
 
             break;
         case Expr_Ident:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("Ident: %.*s\n", (int) expr->ident.len, expr->ident.items);
+            printf("Ident: %.*s\n", (int) expr->as.ident.len, expr->as.ident.items);
             break;
         case Expr_String:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("String: %.*s\n", (int) expr->str.len, expr->str.items);
+            printf("String: %.*s\n", (int) expr->as.str.len, expr->as.str.items);
             break;
         case Expr_Unary:
             for (int i = 0; i < level; i++) printf(" ");
             printf("Unary:\n");
 
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Operator: %s\n", lex_print((Lexeme) expr->unary_op.operand));
+            printf("Operator: %s\n", lex_print((Lexeme) expr->as.unary_op.operand));
 
-            dump_node(expr->unary_op.expr, level + 1);
+            dump_node(expr->as.unary_op.expr, level + 1);
 
             break;
         case Expr_Invalid:
-            assert(0 && "[TODO] dump_expression");
+            assert(0 && "[INVALID] dump invalid expression");
             break;
     }
 }

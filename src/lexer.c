@@ -172,7 +172,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 char* items = areno_alloc(areno, len);
                 strcpy(items, wordBuf);
                 tok.kind   = Lex_String;
-                tok.string = (String_View) {
+                tok.as.string = (String_View) {
                     .items = items,
                     .len   = len,
                 };
@@ -197,7 +197,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
             }
 
             tok.kind = Lex_Number;
-            tok.number = (int)strtol(numBuf, NULL, 10);
+            tok.as.number = (int)strtol(numBuf, NULL, 10);
             if (errno != 0) {
                 printf("Conversion from '%s' to number failed\n", numBuf);
                 exit(1);
@@ -226,10 +226,18 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = Lex_enum;
             else if (strcmp(wordBuf, "type")   == 0)
                 tok.kind = Lex_type;
+            else if (strcmp(wordBuf, "module")  == 0)
+                tok.kind = Lex_module;
+            else if (strcmp(wordBuf, "use")  == 0)
+                tok.kind = Lex_use;
+            else if (strcmp(wordBuf, "using")  == 0)
+                tok.kind = Lex_using;
             else if (strcmp(wordBuf, "let")    == 0)
                 tok.kind = Lex_let;
             else if (strcmp(wordBuf, "const")  == 0)
                 tok.kind = Lex_const;
+            else if (strcmp(wordBuf, "defer") == 0)
+                tok.kind = Lex_defer;
             else if (strcmp(wordBuf, "return") == 0)
                 tok.kind = Lex_return;
             else if (strcmp(wordBuf, "reject") == 0)
@@ -244,10 +252,14 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = Lex_switch;
             else if (strcmp(wordBuf, "match")  == 0)
                 tok.kind = Lex_match;
+            else if (strcmp(wordBuf, "do")  == 0)
+                tok.kind = Lex_do;
             else if (strcmp(wordBuf, "while")  == 0)
                 tok.kind = Lex_while;
             else if (strcmp(wordBuf, "for")    == 0)
                 tok.kind = Lex_for;
+            else if (strcmp(wordBuf, "break")    == 0)
+                tok.kind = Lex_break;
             else if (strcmp(wordBuf, "try")    == 0)
                 tok.kind = Lex_try;
             else if (strcmp(wordBuf, "catch")  == 0)
@@ -256,8 +268,8 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 char* items = areno_alloc(areno, len);
                 strcpy(items, wordBuf);
 
-                tok.kind  = Lex_Ident;
-                tok.ident = (String_View) {
+                tok.kind = Lex_Ident;
+                tok.as.ident = (String_View) {
                     .items = items,
                     .len   = len,
                 };
@@ -295,7 +307,7 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Divide:        return "/";
         case Lex_Modulo:        return "%";
         case Lex_Bang:          return "!";
-        case Lex_Question:      return "!";
+        case Lex_Question:      return "?";
         case Lex_Equal:         return "=";
         case Lex_Lower:         return "<";
         case Lex_Greater:       return ">";
@@ -316,6 +328,10 @@ const char* lex_print(Lexeme lexeme)
         case Lex_type:      return "type";
         case Lex_interface: return "interface";
 
+        case Lex_module:    return "module";
+        case Lex_use:       return "use";
+        case Lex_using:     return "using";
+
         case Lex_extern: return "extern";
         case Lex_static: return "static";
         case Lex_let:    return "let";
@@ -330,7 +346,9 @@ const char* lex_print(Lexeme lexeme)
         case Lex_else:   return "else";
         case Lex_match:  return "match";
         case Lex_switch: return "switch";
+        case Lex_break:  return "break";
 
+        case Lex_do:     return "do";
         case Lex_while:  return "while";
         case Lex_for:    return "for";
 
@@ -348,28 +366,6 @@ const char* lex_print(Lexeme lexeme)
     return "UNREACHABLE";
 }
 
-char *str_printf(Areno *areno, const char *fmt, ...) {
-    va_list args;
-    va_list args2;
-
-    va_start(args, fmt);
-    va_copy(args2, args);
-    va_start(args2, fmt);
-
-    int size  = vsnprintf(NULL, 0, fmt, args);
-    va_end(args);
-    if (size < 0) {
-        va_end(args2);
-        return NULL;
-    }
-
-    char *str = areno_alloc(areno, size);
-    vsnprintf(str, size + 1, fmt, args2);
-
-    va_end(args2);
-    return str;
-}
-
 // Return a NULL terminated string representing the token
 char *token_print(const Token *tok, Areno *areno)
 {
@@ -380,13 +376,13 @@ char *token_print(const Token *tok, Areno *areno)
     const char *default_format = "'%s'";
 
     if (tok->kind == Lex_Ident) {
-        str = str_printf(areno, string_format, lexeme, (int)tok->ident.len, tok->ident.items);
+        str = areno_printf(areno, string_format, lexeme, (int)tok->as.ident.len, tok->as.ident.items);
     } else if (tok->kind == Lex_String) {
-        str = str_printf(areno, string_format, lexeme, (int)tok->string.len, tok->string.items);
+        str = areno_printf(areno, string_format, lexeme, (int)tok->as.string.len, tok->as.string.items);
     } else if (tok->kind == Lex_Number){
-        str = str_printf(areno, number_format, lexeme, tok->number);
+        str = areno_printf(areno, number_format, lexeme, tok->as.number);
     } else {
-        str = str_printf(areno, default_format, lexeme);
+        str = areno_printf(areno, default_format, lexeme);
     }
 
     return str;

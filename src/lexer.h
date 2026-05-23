@@ -31,7 +31,7 @@ typedef enum {
     Lex_Divide,        // /
     Lex_Modulo,        // %
     Lex_Bang,          // !
-    Lex_Question,      // !
+    Lex_Question,      // ?
     Lex_Equal,         // =
     Lex_Lower,         // <
     Lex_Greater,       // >
@@ -98,7 +98,7 @@ typedef struct {
         int         number;
         String_View string;
         String_View ident;
-    };
+    } as;
 } Token;
 
 Token*      lexer_lex(Lexer* lexer, Areno* areno);
