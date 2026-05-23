@@ -44,7 +44,7 @@ typedef struct {
 
 typedef struct {
     String_View name;
-    String_View type;
+    Node       *type;
 } Arg;
 
 typedef struct {
@@ -181,23 +181,22 @@ Node *parser_create_nodes(Parser *parser, size_t nb);
 Node *parser_create_node (Parser *parser, Node_Kind kind);
 Expr *parser_create_expr (Parser *parser, Expr_Kind kind);
 
-// Top level statements
-Node *parse_top_statement(Parser *parser);
-Node *parse_top_funcdef  (Parser *parser);
-Node *parse_top_assign   (Parser *parser); // TODO!
+// Statement
+Node *parse_statement  (Parser *parser);
+Node *parse_stmt_assign(Parser *parser);
+Node *parse_stmt_if    (Parser *parser);
+Node *parse_stmt_while (Parser *parser);
+Node *parse_stmt_for   (Parser *parser); // TODO!
+
+// Function
+Node *parse_func_def(Parser *parser);
+Node *parse_func_arg(Parser *parser);
 
 // Block
 Node *parse_block        (Parser *parser);
 Node *parse_bloc_defer   (Parser *parser); // TODO!
 
 Node *parse_type_expr    (Parser *parser);
-
-// Statement
-Node *parse_statement    (Parser *parser);
-Node *parse_stmt_assign  (Parser *parser);
-Node *parse_stmt_if      (Parser *parser);
-Node *parse_stmt_while   (Parser *parser);
-Node *parse_stmt_for     (Parser *parser); // TODO!
 
 // Expressions
 Node *parse_expression   (Parser *parser);

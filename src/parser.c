@@ -143,44 +143,62 @@ Node *parser_parse(Parser *parser)
 
     Token current;
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
-        Node *func = parse_top_funcdef(parser);
+        Node *func = parse_statement(parser);
         if (func == NULL) return NULL;
         program->as.block.items[program->as.block.count++] = *func;
     }
     return program;
 }
 
-Node *parse_top_statement(Parser *parser)
+Node *parse_statement(Parser *parser)
 {
-    Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
-    if (current.kind == Lex_Invalid) {
-        current = parser_peek(parser);
-        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected top-level-statement, found: '%s'\n",
-                current.row,
-                current.col,
-                lex_print(current.kind));
-        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
-        return NULL;
-    } else if (current.kind == Lex_const || current.kind == Lex_let) {
-        Node *node = parse_top_assign(parser);
+    Token current = parser_peek(parser);
+    if (current.kind == Lex_Open_brace) { // { ... } -- block
+        Node *node = parse_block(parser);
         if (node == NULL) return NULL;
         return node;
-    } else if (current.kind == Lex_Ident){ // ident
-        Node *node = parse_top_funcdef(parser);
+    } else if (current.kind == Lex_Ident) {
+        Token next = parser_lookahead(parser, 1);
+        if (next.kind == Lex_Equal) { // x = ...; -- reassign
+            Node *node = parse_stmt_assign(parser);
+            if (node == NULL) return NULL;
+            parser_match(parser, Lex_Semicolon);
+            return node;
+        } else if (next.kind == Lex_Colon_Colon) {
+            // fn :: (): type {} -- function definition
+            Node *node = parse_func_def(parser);
+            if (node == NULL) return NULL;
+            return node;
+        } else { // expr or funcall
+            Node *expr = parse_expression(parser);
+            if (expr == NULL) return NULL;
+            // to allow call of funciton raw like "printf(...);"
+            // or just raw expressions
+            parser_match(parser, Lex_Semicolon);
+            return expr;
+        }
+    } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
+        Node *node = parse_stmt_assign(parser);
+        if (node == NULL) return NULL;
+        parser_match(parser, Lex_Semicolon);
+        return node;
+    } else if (current.kind == Lex_if) { // if ...
+        Node *node = parse_stmt_if(parser);
+        if (node == NULL) return NULL;
+        return node;
+    } else if (current.kind == Lex_while) { // while ...
+        Node *node = parse_stmt_while(parser);
         if (node == NULL) return NULL;
         return node;
     }
-    parser_prepare_error(parser, "[UNREACHABLE] top statement\n", Parse_Err_Unreachable);
-    return NULL;
+
+    Node *expr = parse_expression(parser);
+    if (expr == NULL) return NULL;
+    parser_match(parser, Lex_Semicolon);
+    return expr;
 }
 
-Node *parse_top_assign(Parser *parser) 
-{
-    parser_prepare_error(parser, "[TODO] top level assign\n", Parse_Err_Todo);
-    return NULL;
-}
-
-Node *parse_top_funcdef(Parser *parser)
+Node *parse_func_def(Parser *parser)
 {
     Token funcname = parser_peek(parser);
     parser_expect(parser, Lex_Ident);
@@ -194,14 +212,13 @@ Node *parse_top_funcdef(Parser *parser)
     while (!parser_match(parser, Lex_Close_bracket).kind) {
         Token arg_name = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
-        parser_expect(parser, Lex_Colon);
 
-        Token arg_type = parser_peek(parser);
-        parser_expect(parser, Lex_Ident);
+        Node *type = parse_type_expr(parser);
+        if (type == NULL) return NULL;
 
         args.items[args.count++] = (Arg) {
             .name = sv_copy(&parser->areno, &arg_name.as.ident),
-            .type = sv_copy(&parser->areno, &arg_type.as.ident),
+            .type = type,
         };
 
         // this allow trailing coma
@@ -262,54 +279,6 @@ Node *parse_bloc_defer(Parser *parser)
 {
     parser_prepare_error(parser, "[TODO] block defer\n", Parse_Err_Todo);
     return NULL;
-}
-
-Node *parse_statement(Parser *parser)
-{
-    Token current = parser_peek(parser);
-    if (current.kind == Lex_Open_brace) { // { ... } -- block
-        Node *node = parse_block(parser);
-        if (node == NULL) return NULL;
-        return node;
-    } else if (current.kind == Lex_Ident) {
-        Token next = parser_lookahead(parser, 1);
-        if (next.kind == Lex_Equal) { // x = ...; -- reassign
-            Node *node = parse_stmt_assign(parser);
-            if (node == NULL) return NULL;
-            parser_match(parser, Lex_Semicolon);
-            return node;
-        } else if (next.kind == Lex_Colon_Colon) {
-            // fn :: (): type {} -- function definition
-            Node *node = parse_top_funcdef(parser);
-            if (node == NULL) return NULL;
-            return node;
-        } else { // expr or funcall
-            Node *expr = parse_expression(parser);
-            if (expr == NULL) return NULL;
-            // to allow call of funciton raw like "printf(...);"
-            // or just raw expressions
-            parser_match(parser, Lex_Semicolon);
-            return expr;
-        }
-    } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
-        Node *node = parse_stmt_assign(parser);
-        if (node == NULL) return NULL;
-        parser_match(parser, Lex_Semicolon);
-        return node;
-    } else if (current.kind == Lex_if) { // if ...
-        Node *node = parse_stmt_if(parser);
-        if (node == NULL) return NULL;
-        return node;
-    } else if (current.kind == Lex_while) { // while ...
-        Node *node = parse_stmt_while(parser);
-        if (node == NULL) return NULL;
-        return node;
-    }
-
-    Node *expr = parse_expression(parser);
-    if (expr == NULL) return NULL;
-    parser_match(parser, Lex_Semicolon);
-    return expr;
 }
 
 Node *parse_stmt_if(Parser *parser)
@@ -732,8 +701,7 @@ void dump_node(Node *node, int level)
                     printf("Args %d\n", (int)i + 1);
                     for (int i = 0; i < level + 3; i++) printf(" ");
                     printf("Name: %.*s\n", (int)arg.name.len, arg.name.items);
-                    for (int i = 0; i < level + 3; i++) printf(" ");
-                    printf("Type: %.*s\n", (int)arg.type.len, arg.type.items);
+                    dump_node(arg.type, level + 3);
                 }
             }
             // type
