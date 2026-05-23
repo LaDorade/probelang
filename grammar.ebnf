@@ -1,26 +1,4 @@
-program      ::= { top-statement } ;
-
-# Top level statements
-top-statement  ::=
-    | top-funcdef
-    | top-assign ;
-top-funcdef    ::= term-ident '::' '(' { argument } ')' ':' type-expr block ;
-argument       ::= term-ident ':' type-expr ;
-top-assign     ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' top-expr ;
-top-expr       ::= top-expr-equal ;
-top-expr-equal ::= top-expr-add   { ('<' | '>' | '==' | '!=' | '<=' | '>=') top-expr-add } ;
-top-expr-add   ::= top-expr-mul   { ('+' | '-')                             top-expr-mul } ;
-top-expr-mul   ::= top-expr-unary { ('*' | '/' | '%')                       top-expr-unary } ;
-top-expr-unary ::= { '!' | '-' } top-expr-primary ;
-top-expr-prim  ::= '(' top-expr ')' | terminal ;
-
-# Blocks
-block        ::= '{' { statement | bloc-defer } '}';
-bloc-defer   ::= 'defer' statement
-
-# Types
-type-expr     ::= term-optional [ '!' type-optional ] ;
-type-optional ::= [ '?' ] term-ident ;
+program      ::= { statement } ;
 
 # Statements
 statement     ::=
@@ -29,12 +7,25 @@ statement     ::=
     | stmt-while
     | block
     | expression [ ';' ]
+    | func-def
 ;
 stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
 stmt-reassign ::= ident '=' expression | block ;
 stmt-if       ::= 'if'    ((['('] expression [')']) | expression) statement ['else' statement] ;
 stmt-while    ::= 'while' ((['('] expression [')']) | expression) statement ;
 stmt-for      ::= # TODO
+
+# Function
+func-def    ::= term-ident '::' '(' { argument } ')' ':' type-expr block ;
+func-arg    ::= term-ident ':' type-expr ;
+
+# Blocks
+block        ::= '{' { statement | bloc-defer } '}';
+bloc-defer   ::= 'defer' statement
+
+# Types
+type-expr     ::= term-optional [ '!' type-optional ] ;
+type-optional ::= [ '?' ] term-ident ;
 
 # Expressions (lower have priority)
 expression   ::= expr-equal                                                    ;
