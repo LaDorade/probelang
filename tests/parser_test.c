@@ -58,8 +58,8 @@ int main()
     }
 
     {
-        setup_test("main    :: (): void {yop(\"bijour\", 32); let b =  (1 + -23) * 2;}"
-                    "bijour :: (): void {top(\"aled  \", 32); let b =  23;}");
+        setup_test("fun main: () -> void = {yop(\"bijour\", 32); let b =  (1 + -23) * 2;}"
+                    "fun bijour: () -> void = {top(\"aled  \", 32); let b =  23;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->kind == NodeKind_Block && "Root node should be of kind NodeKind_Block");
         assert(prog->as.block.count == 2 && "Should have 2 statements");
@@ -67,7 +67,7 @@ int main()
     }
 
     {   // should support 0 statements
-        setup_test("main :: (): void {}");
+        setup_test("fun main: () -> void = {}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].kind == NodeKind_Funcdef &&
                 "first statement should be a function");
@@ -78,7 +78,7 @@ int main()
     }
 
     {   // assignement
-        setup_test("main :: (): void {let a = 42;}");
+        setup_test("fun main: () -> void = {let a = 42;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -95,7 +95,7 @@ int main()
     }
 
     {   // const assignement
-        setup_test("main :: (): void {const a = 42;}");
+        setup_test("fun main: () -> void = {const a = 42;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -112,7 +112,7 @@ int main()
     }
 
     {   // reassignement
-        setup_test("main :: (): void { a = 42;}");
+        setup_test("fun main: () -> void = { a = 42;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -129,16 +129,16 @@ int main()
     }
 
     {   // bad assignement
-        setup_test("main :: (): void {let 32 = 42;}");
+        setup_test("fun main: () -> void = {let 32 = 42;}");
         assert(prog == NULL && "Prog should be null");
         assert(parser.err.code == Parse_Err_UnexpectedToken && "Unenexpected error should be expected");
         assert(parser.err.formatted != NULL && "Error message should not be null");
-        assert(parser.err.row == 1 && parser.err.col == 23 && "Error location shoud be correct");
+        assert(parser.err.row == 1 && parser.err.col == 29 && "Error location shoud be correct");
         printf("[TEST] Error assignement\n");
     }
 
     {   // block assignement TODO: Test inside of block
-        setup_test("main :: (): void {let a = { 32 };}");
+        setup_test("fun main: () -> void = {let a = { 32 };}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -151,7 +151,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {1 + 2}");
+        setup_test("fun main: () -> void = {1 + 2}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -168,7 +168,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {1 + 2;}");
+        setup_test("fun main: () -> void = {1 + 2;}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -185,7 +185,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {\"bijour\";}");
+        setup_test("fun main: () -> void = {\"bijour\";}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -197,7 +197,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {\"bijour\" 1 + 2}");
+        setup_test("fun main: () -> void = {\"bijour\" 1 + 2}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 2 && "should have 2 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -218,7 +218,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void { fn() }");
+        setup_test("fun main: () -> void = { fn() }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -229,7 +229,7 @@ int main()
         assert(expression.as.expression->as.funcall.args.count == 0 && "Should have no argument passed");
         printf("[TEST] Funcall expression\n");
 
-        setup_test("main :: (): void { fn(x, 32) }");
+        setup_test("fun main: () -> void = { fn(x, 32) }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         statements = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -249,7 +249,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {if 12 == 32 { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"bijour!\"); }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -279,7 +279,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {if (41 == 32) { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if (41 == 32) { println(\"bijour!\"); }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -309,15 +309,15 @@ int main()
     }
 
     { // 
-        setup_test("main :: (): void {if (41 == 32 { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if (41 == 32 { println(\"bijour!\"); }}");
         assert(prog == NULL && "prog should be null");
         assert(parser.err.code && "parser should show an error");
-        assert(parser.err.col == 32 && "error should be at col 32");
+        assert(parser.err.col == 38 && "error should be at col 38");
         printf("[TEST] Test simple if with missing one '()'\n");
     }
 
     {
-        setup_test("main :: (): void {if 12 == 32 { println(\"yes!\"); } else { println(\"no!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else { println(\"no!\"); }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -340,7 +340,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -363,7 +363,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); } else { println(\"aled\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); } else { println(\"aled\"); }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -392,7 +392,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void { let a = 32; while a >= 0 println(\"bijour!\"); }");
+        setup_test("fun main: () -> void = { let a = 32; while a >= 0 println(\"bijour!\"); }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 2 && "should have 2 statement");
 
@@ -411,7 +411,7 @@ int main()
     }
 
     {
-        setup_test("main :: (): void { let a = 32; while a >= 0 { a = a + 1; println(\"bijour!\"); } }");
+        setup_test("fun main: () -> void = { let a = 32; while a >= 0 { a = a + 1; println(\"bijour!\"); } }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 2 && "should have 2 statement");
 

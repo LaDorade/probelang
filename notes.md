@@ -137,6 +137,3 @@ ainsi que return pour quitter la fonction courante.
 Les blocks `if`, `while` et `switch` sont des blocks conditionnels et ne peuvent pas renvoyer des valeurs via `local`.
 
 
-## Reject
-
-

@@ -164,11 +164,6 @@ Node *parse_statement(Parser *parser)
             if (node == NULL) return NULL;
             parser_match(parser, Lex_Semicolon);
             return node;
-        } else if (next.kind == Lex_Colon_Colon) {
-            // fn :: (): type {} -- function definition
-            Node *node = parse_func_def(parser);
-            if (node == NULL) return NULL;
-            return node;
         } else { // expr or funcall
             Node *expr = parse_expression(parser);
             if (expr == NULL) return NULL;
@@ -177,6 +172,11 @@ Node *parse_statement(Parser *parser)
             parser_match(parser, Lex_Semicolon);
             return expr;
         }
+    } else if (current.kind == Lex_fun) {
+        // fun xx: (...) -> ... = { ... }
+        Node *node = parse_func_def(parser);
+        if (node == NULL) return NULL;
+        return node;
     } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
         Node *node = parse_stmt_assign(parser);
         if (node == NULL) return NULL;
@@ -198,11 +198,13 @@ Node *parse_statement(Parser *parser)
     return expr;
 }
 
+// func-decl = 'fun' ident ':' '(' ident ':' type { ',' ident ':' type } ')' '->' type '=' '{' { statements } '}';
 Node *parse_func_def(Parser *parser)
 {
+    parser_expect(parser, Lex_fun);
     Token funcname = parser_peek(parser);
     parser_expect(parser, Lex_Ident);
-    parser_expect(parser, Lex_Colon_Colon);
+    parser_expect(parser, Lex_Colon);
 
     // args
     parser_expect(parser, Lex_Open_bracket);
@@ -213,6 +215,7 @@ Node *parse_func_def(Parser *parser)
         Token arg_name = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
 
+        parser_expect(parser, Lex_Colon);
         Node *type = parse_type_expr(parser);
         if (type == NULL) return NULL;
 
@@ -228,8 +231,11 @@ Node *parse_func_def(Parser *parser)
         }
     }
 
+    parser_expect(parser, Lex_Arrow_Right);
     Node *type = parse_type_expr(parser);
     if (type == NULL) return NULL;
+
+    parser_expect(parser, Lex_Equal);
     
     // expect a block
     Node *body = parse_block(parser);
@@ -333,7 +339,6 @@ Node *parse_stmt_while(Parser *parser)
 Node *parse_type_expr(Parser *parser)
 {
     Node *node = parser_create_node(parser, NodeKind_Type);
-    parser_expect(parser, Lex_Colon);
 
     Token current;
     bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
@@ -415,7 +420,7 @@ Node *parse_stmt_assign(Parser *parser)
         parser_expect(parser, Lex_Ident);
     }
     Node *type = NULL;
-    if (parser_peek(parser).kind == Lex_Colon) {
+    if (parser_match(parser, Lex_Colon).kind != Lex_Invalid) {
         type = parse_type_expr(parser);
         if (type == NULL) return NULL;
     }

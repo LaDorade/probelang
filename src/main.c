@@ -50,16 +50,16 @@ int main(void)
     };
 
     Node *prog = parser_parse(&parser);
-    areno_free(&lex_areno);
+    // areno_free(&lex_areno);
     if (prog == NULL) {
         printf("Error while parsing:\n%s", parser.err.formatted);
         parser_free(&parser);
         return 1;
     }
 
-    dump_node(prog, 0);
+    // dump_node(prog, 0);
 
-    parser_free(&parser);
+    // parser_free(&parser);
 
     return 0;
 }

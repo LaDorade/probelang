@@ -95,6 +95,10 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = lex_match(lexer, '=') ? Lex_Greater_Equal : Lex_Greater;
                 tokens[current_tok++] = tok;
                 continue;
+            case '-':
+                tok.kind = lex_match(lexer, '>') ? Lex_Arrow_Right : Lex_Minus;
+                tokens[current_tok++] = tok;
+                continue;
 
             // single char Lexeme
             case ',':
@@ -131,10 +135,6 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 continue;
             case '+':
                 tok.kind = Lex_Plus;
-                tokens[current_tok++] = tok;
-                continue;
-            case '-':
-                tok.kind = Lex_Minus;
                 tokens[current_tok++] = tok;
                 continue;
             case '*':
@@ -232,6 +232,8 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tok.kind = Lex_use;
             else if (strcmp(wordBuf, "using")  == 0)
                 tok.kind = Lex_using;
+            else if (strcmp(wordBuf, "fun")    == 0)
+                tok.kind = Lex_fun;
             else if (strcmp(wordBuf, "let")    == 0)
                 tok.kind = Lex_let;
             else if (strcmp(wordBuf, "const")  == 0)
@@ -320,6 +322,7 @@ const char* lex_print(Lexeme lexeme)
         case Lex_Greater_Equal: return ">=";
         case Lex_Equal_Equal:   return "==";
         case Lex_Not_Equal:     return "!=";
+        case Lex_Arrow_Right:   return "->";
 
         // KEYWORDS
         case Lex_struct:    return "struct";
@@ -336,6 +339,8 @@ const char* lex_print(Lexeme lexeme)
         case Lex_static: return "static";
         case Lex_let:    return "let";
         case Lex_const:  return "const";
+
+        case Lex_fun:  return "fun";
 
         case Lex_defer:  return "defer";
         case Lex_return: return "return";

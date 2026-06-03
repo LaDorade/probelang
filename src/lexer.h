@@ -44,6 +44,7 @@ typedef enum {
     Lex_Greater_Equal, // >=
     Lex_Equal_Equal,   // ==
     Lex_Not_Equal,     // !=
+    Lex_Arrow_Right,         // ->
 
     // KEYWORDS
     Lex_struct,
@@ -55,6 +56,8 @@ typedef enum {
     Lex_module,
     Lex_use,
     Lex_using,
+
+    Lex_fun,
 
     Lex_extern,
     Lex_static,
