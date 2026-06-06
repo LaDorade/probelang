@@ -136,4 +136,58 @@ ainsi que return pour quitter la fonction courante.
 
 Les blocks `if`, `while` et `switch` sont des blocks conditionnels et ne peuvent pas renvoyer des valeurs via `local`.
 
+### Le cas des labels
+
+```zig
+fun main: () -> void = { // block a.k.a. scope de la fonction
+    block: {
+        ...
+        local return block;
+    }
+    printf("bijour\n");
+    let a = assign: {
+        let x = 23;
+        let y = 2;
+        lab: while (true) {
+            ...
+            if (x == 12) {
+                // return | will return from function main
+                // local return | will return from 'lab' block
+                // break assign x | why not
+                // local return assign x | horrible
+                // local return :assign x | clear ?
+                // return :assign x | since we specify a block, no need for 'local'
+                return :assign x; // feels nice
+                return:assign x; // ?
+
+                // maybe ?
+                :assign return x;
+            } else if (x == 1) {
+                // break lab;
+                // :lab return;
+                return :lab;
+            } else if (x == 0) { // want to return from function
+                return;
+            }
+        }
+        // local return y; | was the original idea
+        // return local y; | follow the same pattern as above
+        // return :local y; | better ? follow the above rule
+        return :local y; // above pattern, but local is reserved
+        return:local y;
+        // why not make is a directive / builtin ?
+        // return #local y;
+        // but we want to specify the RETURN, not the expression so
+        // #local return y; // seems better to fit the intent
+        // :local return y; // local is reserved block label
+    }
+}
+```
+After testing, `'return' [ ':' { ident } ] [expression] ;` seems to be the best fit.
+Where "local" is a keyword that be placed after ':' to return from the first inconditionnal block
+(The same applies for reject)
+
+
+
+
 

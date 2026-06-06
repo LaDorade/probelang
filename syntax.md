@@ -87,3 +87,75 @@ func-decl = 'fun' ident ':' '(' ident ':' type { ',' ident ':' type } ')' '->' t
 > que l'on peut avoir des choses qui n'ont de sens qu'à la compilation (comme 'Type')
 > On pourrait soit prendre en considération ce comportement (comme en zig), ou soit complétement ignoré ça et mettre 'type-expr'
 > à la place
+
+
+## Structures
+
+Comment gérer les structures/enum/union anonymes ?
+
+A:
+```odin
+struct ma_struct = {
+    x: i32;
+    y: f64;
+    s: struct = { // ne pas mettre de nom pour déclarer la struct ?
+                  // implique que l'on attend aussi une struct aux endroit d'un type-expr
+        a: i32;
+        b: i32;
+    };
+    u: union = {
+        a: i32;
+        b: u8;
+    }
+    s2: struct: Type = { // :(
+                         // zig has something similar and doesn't allow ': Type'
+                         // so why not !
+        a: i32;
+    };
+    u2: union: Type = {
+        a: i32;
+        b: u8;
+    }
+    // this require to modify the parsing rule of struct
+    // so
+    // 'struct' ident [ ':' ident ] '=' '{' ... '}'
+    // become
+    // 'struct' [ ident ] [ ':' ident ] '=' '{' ... '}'
+    // not a big deal but my heart is broken that its not 'that' clean of a syntax
+}
+```
+```zig
+const Sus: type = struct { // allow ': type' here
+    a: i32,
+    b: i32,
+    u: union(u8): type { // not here
+        a: i32,
+        b: i32,
+    }
+};
+// This has the advantage of only requiring one syntax for parsing both top level
+// and nested declaration
+```
+
+B:
+```c
+struct ma_struct = {
+    x: i32;
+    y: f64;
+    struct s = { // act as anon Type struct, but is also a field
+                 // not really clear
+        a: i32;
+    };
+    union u = {
+        a: i32;
+        b: u8;
+    }
+    struct s2: Type = { // equivalent
+        a: i32;
+    };
+    union u2: Type = {
+        a: i32;
+        b: u8;
+    }
+}
+
