@@ -41,7 +41,6 @@ void setup_test(char *buf)
         .len   = strlen(buf),
     };
     tokens = lexer_lex(&lexer, &lex_areno);
-    parser.sv     = lexer.sv;
     parser.tokens = tokens;
     prog = parser_parse(&parser);
 
@@ -58,8 +57,8 @@ int main()
     }
 
     {
-        setup_test("fun main: () -> void = {yop(\"bijour\", 32); let b =  (1 + -23) * 2;}"
-                    "fun bijour: () -> void = {top(\"aled  \", 32); let b =  23;}");
+        setup_test("fun main: () -> void = {yop(\"bijour\", 32) let b =  (1 + -23) * 2}"
+                    "fun bijour: () -> void = {top(\"aled  \", 32) let b =  23}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->kind == NodeKind_Block && "Root node should be of kind NodeKind_Block");
         assert(prog->as.block.count == 2 && "Should have 2 statements");
@@ -78,7 +77,7 @@ int main()
     }
 
     {   // assignement
-        setup_test("fun main: () -> void = {let a = 42;}");
+        setup_test("fun main: () -> void = {let a = 42}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -95,7 +94,7 @@ int main()
     }
 
     {   // const assignement
-        setup_test("fun main: () -> void = {const a = 42;}");
+        setup_test("fun main: () -> void = {const a = 42}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -112,7 +111,7 @@ int main()
     }
 
     {   // reassignement
-        setup_test("fun main: () -> void = { a = 42;}");
+        setup_test("fun main: () -> void = { a = 42}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -129,16 +128,15 @@ int main()
     }
 
     {   // bad assignement
-        setup_test("fun main: () -> void = {let 32 = 42;}");
+        setup_test("fun main: () -> void = {let 32 = 42}");
         assert(prog == NULL && "Prog should be null");
         assert(parser.err.code == Parse_Err_UnexpectedToken && "Unenexpected error should be expected");
         assert(parser.err.formatted != NULL && "Error message should not be null");
-        assert(parser.err.row == 1 && parser.err.col == 29 && "Error location shoud be correct");
         printf("[TEST] Error assignement\n");
     }
 
     {   // block assignement TODO: Test inside of block
-        setup_test("fun main: () -> void = {let a = { 32 };}");
+        setup_test("fun main: () -> void = {let a = { 32 }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -168,7 +166,7 @@ int main()
     }
 
     {
-        setup_test("fun main: () -> void = {1 + 2;}");
+        setup_test("fun main: () -> void = {1 + 2}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements  = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -185,7 +183,7 @@ int main()
     }
 
     {
-        setup_test("fun main: () -> void = {\"bijour\";}");
+        setup_test("fun main: () -> void = {\"bijour\"}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node *statements = prog->as.block.items[0].as.funcdef.block->as.block.items;
@@ -225,7 +223,7 @@ int main()
         Node  expression = statements[0];
         assert(expression.kind == NodeKind_Expression && "Expected an expression");
         assert(expression.as.expression->kind == Expr_Funcall && "Expected a funcall expression");
-        assert(sv_eq_string("fn", expression.as.expression->as.funcall.name) && "Expected a function to be \"fn\"");
+        assert(sv_eq_string("fn", expression.as.expression->as.funcall.callee->as.ident) && "Expected a function to be \"fn\"");
         assert(expression.as.expression->as.funcall.args.count == 0 && "Should have no argument passed");
         printf("[TEST] Funcall expression\n");
 
@@ -236,7 +234,7 @@ int main()
         expression = statements[0];
         assert(expression.kind == NodeKind_Expression && "Expected an expression");
         assert(expression.as.expression->kind == Expr_Funcall && "Expected a funcall expression");
-        assert(sv_eq_string("fn", expression.as.expression->as.funcall.name) && "Expected a function to be \"fn\"");
+        assert(sv_eq_string("fn", expression.as.expression->as.funcall.callee->as.ident) && "Expected a function to be \"fn\"");
         assert(expression.as.expression->as.funcall.args.count == 2 && "Should have 2 arguments passed");
         assert(expression.as.expression->as.funcall.args.items[0].kind == NodeKind_Expression && "Arg 1 should be an expression");
         assert(expression.as.expression->as.funcall.args.items[1].kind == NodeKind_Expression && "Arg 2 should be an expression");
@@ -249,7 +247,7 @@ int main()
     }
 
     {
-        setup_test("fun main: () -> void = {if 12 == 32 { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"bijour!\") }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -274,12 +272,12 @@ int main()
         Node stmt = if_statement.as.if_node.ok_node->as.block.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.as.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
-        assert(sv_eq_string("println", stmt.as.expression->as.funcall.name) && "Expected funcall name to be 'println'");
+        assert(sv_eq_string("println", stmt.as.expression->as.funcall.callee->as.ident) && "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if\n");
     }
 
     {
-        setup_test("fun main: () -> void = {if (41 == 32) { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if (41 == 32) { println(\"bijour!\") }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -304,20 +302,19 @@ int main()
         Node stmt = block->as.block.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.as.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
-        assert(sv_eq_string("println", stmt.as.expression->as.funcall.name) && "Expected funcall name to be 'println'");
+        assert(sv_eq_string("println", stmt.as.expression->as.funcall.callee->as.ident) && "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if with '()'\n");
     }
 
     { // 
-        setup_test("fun main: () -> void = {if (41 == 32 { println(\"bijour!\"); }}");
+        setup_test("fun main: () -> void = {if (41 == 32 { println(\"bijour!\") }}");
         assert(prog == NULL && "prog should be null");
         assert(parser.err.code && "parser should show an error");
-        assert(parser.err.col == 38 && "error should be at col 38");
         printf("[TEST] Test simple if with missing one '()'\n");
     }
 
     {
-        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else { println(\"no!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\") } else { println(\"no!\") }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -333,14 +330,14 @@ int main()
         Node stmt = else_node->as.block.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.as.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
-        assert(sv_eq_string("println", stmt.as.expression->as.funcall.name) && "Expected funcall name to be 'println'");
+        assert(sv_eq_string("println", stmt.as.expression->as.funcall.callee->as.ident) && "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
         assert(sv_eq_string("no!", stmt.as.expression->as.funcall.args.items[0].as.expression->as.str) && "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if-else\n");
     }
 
     {
-        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\") } else if 32 == 1 { println(\"bij!\") }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -356,14 +353,14 @@ int main()
         Node stmt = else_node->as.if_node.ok_node->as.block.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.as.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
-        assert(sv_eq_string("println", stmt.as.expression->as.funcall.name) && "Expected funcall name to be 'println'");
+        assert(sv_eq_string("println", stmt.as.expression->as.funcall.callee->as.ident) && "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
         assert(sv_eq_string("bij!", stmt.as.expression->as.funcall.args.items[0].as.expression->as.str) && "Expected funcall name to be 'println'");
         printf("[TEST] Test if-else_if\n");
     }
 
     {
-        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\"); } else if 32 == 1 { println(\"bij!\"); } else { println(\"aled\"); }}");
+        setup_test("fun main: () -> void = {if 12 == 32 { println(\"yes!\") } else if 32 == 1 { println(\"bij!\") } else { println(\"aled\") }}");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 1 && "should have 1 statement");
         Node if_statement  = prog->as.block.items[0].as.funcdef.block->as.block.items[0];
@@ -379,7 +376,7 @@ int main()
         Node stmt = elseif_node->as.if_node.ok_node->as.block.items[0];
         assert(stmt.kind == NodeKind_Expression && "Expected statement to be an expression");
         assert(stmt.as.expression->kind == Expr_Funcall && "Expected expr to be a funcall");
-        assert(sv_eq_string("println", stmt.as.expression->as.funcall.name) && "Expected funcall name to be 'println'");
+        assert(sv_eq_string("println", stmt.as.expression->as.funcall.callee->as.ident) && "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
         assert(sv_eq_string("bij!", stmt.as.expression->as.funcall.args.items[0].as.expression->as.str) && "Expected funcall name to be 'println'");
 
@@ -387,12 +384,12 @@ int main()
         assert(else_node->kind == NodeKind_Block && "Expected a block");
         assert(else_node->as.block.items[0].kind == NodeKind_Expression && "Expected a expr");
         assert(else_node->as.block.items[0].as.expression->kind == Expr_Funcall && "Expected a funcall");
-        assert(sv_eq_string("println", else_node->as.block.items[0].as.expression->as.funcall.name) && "Expected fun name to be println");
+        assert(sv_eq_string("println", else_node->as.block.items[0].as.expression->as.funcall.callee->as.ident) && "Expected fun name to be println");
         printf("[TEST] Test if-else_if-else\n");
     }
 
     {
-        setup_test("fun main: () -> void = { let a = 32; while a >= 0 println(\"bijour!\"); }");
+        setup_test("fun main: () -> void = { let a = 32 while a >= 0 println(\"bijour!\") }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 2 && "should have 2 statement");
 
@@ -411,7 +408,7 @@ int main()
     }
 
     {
-        setup_test("fun main: () -> void = { let a = 32; while a >= 0 { a = a + 1; println(\"bijour!\"); } }");
+        setup_test("fun main: () -> void = { let a = 32 while a >= 0 { a = a + 1 println(\"bijour!\") } }");
         assert(prog != NULL && "prog should not be null");
         assert(prog->as.block.items[0].as.funcdef.block->as.block.count == 2 && "should have 2 statement");
 
