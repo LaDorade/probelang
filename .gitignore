@@ -1,5 +1,12 @@
 /c3c
 main.dSYM/
+
+# builded files
 main
-*.o
 test
+*.o
+
+# other languages (used for comparison)
+*.zig
+*.odin
+*.c3

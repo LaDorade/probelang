@@ -28,7 +28,7 @@
 #endif //ARENO_FREE
 
 #ifndef  ARENO_CAPACITY
-#define  ARENO_CAPACITY 1024*1024 // 1M
+#define  ARENO_CAPACITY 1024*1024 // 1MB
 #endif //ARENO_CAPACITY
 
 typedef struct Areno Areno;

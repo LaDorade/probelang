@@ -77,15 +77,13 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
         Token current          = parser_peek(parser);
         Token prev             = parser_prev(parser);
         const char* lexeme_str = lex_print(lexeme);
-        const char* prev_str   = lex_print(prev.kind);
-        const char* curr_str   = lex_print(current.kind);
+        const char* prev_str   = token_print(&prev, &parser->areno);
+        const char *curr_str   = token_print(&current, &parser->areno);
 
         char *err_msg = areno_printf(&parser->areno,
-                "Expected '%s' after '%s' at %zu:%zu, got '%s'\n",
+                "Expected '%s' after '%s', got '%s'\n",
                 lexeme_str,
                 prev_str,
-                current.row,
-                current.col,
                 curr_str);
 
         parser_prepare_error(parser, err_msg, Parse_Err_UnexpectedToken);
@@ -99,10 +97,9 @@ void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
 {
     Token current = parser_peek(parser);
     parser->err = (Parse_Error) {
+        .guilty    = current,
         .code      = msg == NULL ? Parse_Err_AllocError : kind,
-        .formatted = msg == NULL ? "Error alloc memory" : msg,
-        .row = current.row,
-        .col = current.col,
+        .formatted = msg == NULL ? "Error alloc memory" : msg
     };
 }
 
@@ -162,14 +159,10 @@ Node *parse_statement(Parser *parser)
         if (next.kind == Lex_Equal) { // x = ...; -- reassign
             Node *node = parse_stmt_assign(parser);
             if (node == NULL) return NULL;
-            parser_match(parser, Lex_Semicolon);
             return node;
         } else { // expr or funcall
             Node *expr = parse_expression(parser);
             if (expr == NULL) return NULL;
-            // to allow call of funciton raw like "printf(...);"
-            // or just raw expressions
-            parser_match(parser, Lex_Semicolon);
             return expr;
         }
     } else if (current.kind == Lex_fun) {
@@ -180,7 +173,6 @@ Node *parse_statement(Parser *parser)
     } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
         Node *node = parse_stmt_assign(parser);
         if (node == NULL) return NULL;
-        parser_match(parser, Lex_Semicolon);
         return node;
     } else if (current.kind == Lex_if) { // if ...
         Node *node = parse_stmt_if(parser);
@@ -194,7 +186,6 @@ Node *parse_statement(Parser *parser)
 
     Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
-    parser_match(parser, Lex_Semicolon);
     return expr;
 }
 
@@ -265,10 +256,6 @@ Node *parse_block(Parser *parser)
     while ((current = parser_peek(parser)).kind != Lex_Close_brace) {
         if (current.kind == Lex_Close_brace) {
             break;
-        } else if (current.kind == Lex_defer) {
-            Node *defer = parse_bloc_defer(parser);
-            if (defer == NULL) return NULL;
-            node->as.block.items[node->as.block.count++] = *defer;
         } else {
             Node *stmt = parse_statement(parser);
             if (stmt == NULL) return NULL;
@@ -279,12 +266,6 @@ Node *parse_block(Parser *parser)
     parser_expect(parser, Lex_Close_brace);
 
     return node;
-}
-
-Node *parse_bloc_defer(Parser *parser)
-{
-    parser_prepare_error(parser, "[TODO] block defer\n", Parse_Err_Todo);
-    return NULL;
 }
 
 Node *parse_stmt_if(Parser *parser)
@@ -342,36 +323,22 @@ Node *parse_type_expr(Parser *parser)
 
     Token current;
     bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
-    if (nullable && parser_peek(parser).kind != Lex_Ident) {
-        current = parser_peek(parser);
-        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
-                current.row,
-                current.col,
-                lex_print(current.kind));
-        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
-        return NULL;
-    }
     if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
         node->as.type.success_set      = true;
         node->as.type.success.ident    = sv_copy(&parser->areno, &current.as.ident);
         node->as.type.success.nullable = nullable;
+    } else if (nullable) {
+        parser_expect(parser, Lex_Ident); // crash if nullable but no ident
     }
 
     if (parser_match(parser, Lex_Bang).kind != Lex_Invalid) {
         bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
-        if (nullable && parser_peek(parser).kind != Lex_Ident) {
-            current = parser_peek(parser);
-            char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected identifier, found: '%s'\n",
-                    current.row,
-                    current.col,
-                    lex_print(current.kind));
-            parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
-            return NULL;
-        }
         if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
             node->as.type.error_set      = true;
             node->as.type.error.ident    = sv_copy(&parser->areno, &current.as.ident);
             node->as.type.error.nullable = nullable;
+        } else if (nullable) {
+            parser_expect(parser, Lex_Ident);
         }
     }
 
@@ -537,7 +504,8 @@ Node *parse_expr_mul(Parser *parser)
     return lhs;
 }
 
-// expr-unary   ::= { '!' | '-' } expr-primary
+//expr-unary   ::= { '!' | '-' } expr-unary
+// | expr-funcall ;
 Node *parse_expr_unary(Parser *parser)
 {
     Token current = parser_match(parser, Lex_Minus, Lex_Bang);
@@ -546,7 +514,7 @@ Node *parse_expr_unary(Parser *parser)
         Expr *expr = parser_create_expr(parser, Expr_Unary);
         expr->as.unary_op = (Unary_Op) {
             .operand = current.kind,
-            .expr = parse_expr_primary(parser),
+            .expr = parse_expr_unary(parser),
         };
 
         Node *node = parser_create_node(parser, NodeKind_Expression);
@@ -555,21 +523,53 @@ Node *parse_expr_unary(Parser *parser)
         node->as.expression = expr;
         return node;
     } else {
-        Node *node = parse_expr_primary(parser);
+        Node *node = parse_expr_funcall(parser);
         if (node == NULL) return NULL;
         return node;
     }
 }
 
-// expr-primary ::= expr-funcall | '(' expression ')' | terminal
+Node *parse_expr_funcall(Parser *parser)
+{
+    Node *node = parse_expr_primary(parser);
+    if (node == NULL) return NULL;
+
+    while (parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid) {
+        Expr *expr = parser_create_expr(parser, Expr_Funcall);
+        expr->as.funcall = (Funcall) {
+            .callee = node->as.expression,
+            .args = {
+                .count = 0,
+                .items = parser_create_nodes(parser, MAX_ARGS),
+            }
+        };
+
+        node = parser_create_node(parser, NodeKind_Expression);
+        node->as.expression = expr;
+
+        // args
+        while (parser_match(parser, Lex_Close_bracket).kind == Lex_Invalid) {
+            Node *arg = parse_expression(parser);
+            if (arg == NULL) return NULL;
+            expr->as.funcall.args.items[expr->as.funcall.args.count++] = *arg;
+
+            // this allow trailing coma
+            if (!parser_match(parser, Lex_Comma).kind) {
+                parser_expect(parser, Lex_Close_bracket);
+                break;
+            }
+        }
+    }
+
+    return node;
+}
+
+// expr-primary ::= '(' expression ')' | terminal ;
 Node *parse_expr_primary(Parser *parser)
 {
     Node *node = NULL;
     Token current = parser_peek(parser);
-    if (current.kind == Lex_Ident && parser_lookahead(parser, 1).kind == Lex_Open_bracket) {
-        node = parse_expr_funcall(parser);
-        if (node == NULL) return NULL;
-    } else if (current.kind == Lex_Open_bracket) {
+    if (current.kind == Lex_Open_bracket) {
         parser_expect(parser, Lex_Open_bracket);
         node = parse_expression(parser);
         if (node == NULL) return NULL;
@@ -612,7 +612,7 @@ Node *parse_terminal(Parser *parser)
 
         node->as.expression = expr;
     } else {
-        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected terminal, found: '%s'\n",
+        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected expression, found: '%s'\n",
                 current.row,
                 current.col,
                 lex_print(current.kind));
@@ -621,41 +621,6 @@ Node *parse_terminal(Parser *parser)
     }
 
     if (node == NULL) return NULL;
-    return node;
-}
-
-// expr-funcall ::= term-indent '(' [ expression { ',' expression } [ ',' ] ] ')' ;
-Node *parse_expr_funcall(Parser *parser)
-{
-    Token function = parser_peek(parser);
-    parser_expect(parser, Lex_Ident);
-
-    parser_expect(parser, Lex_Open_bracket);
-
-    Expr *expr = parser_create_expr(parser, Expr_Funcall);
-    expr->as.funcall = (Funcall) {
-        .name = sv_copy(&parser->areno, &function.as.string),
-        .args = {
-            .count = 0,
-            .items = parser_create_nodes(parser, MAX_ARGS),
-        }
-    };
-
-    Node *node = parser_create_node(parser, NodeKind_Expression);
-    node->as.expression = expr;
-
-    while (!parser_match(parser, Lex_Close_bracket).kind) {
-        Node *arg = parse_expression(parser);
-        if (arg == NULL) return NULL;
-        expr->as.funcall.args.items[expr->as.funcall.args.count++] = *arg;
-
-        // this allow trailing coma
-        if (!parser_match(parser, Lex_Comma).kind) {
-            parser_expect(parser, Lex_Close_bracket);
-            break;
-        }
-    }
-
     return node;
 }
 
@@ -789,8 +754,8 @@ void dump_expression (Expr *expr, int level)
         case Expr_Funcall: {
             for (int i = 0; i < level; i++) printf(" ");
             printf("Funcall:\n");
-            for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Name: %.*s\n", (int)expr->as.funcall.name.len, expr->as.funcall.name.items);
+
+            dump_expression(expr->as.funcall.callee, level + 1);
 
             if (expr->as.funcall.args.count == 0) {
                 for (int i = 0; i < level + 1; i++) printf(" ");

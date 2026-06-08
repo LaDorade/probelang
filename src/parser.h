@@ -23,18 +23,18 @@ typedef enum {
 } Parse_Error_Kind;
 
 typedef struct {
-    Parse_Error_Kind code;
+    Token  guilty;
     size_t row, col;
     char  *formatted;
+    Parse_Error_Kind code;
 } Parse_Error;
 
 typedef struct {
-    Areno  areno;
-    String_View sv;
-    Token *tokens;
-    size_t cursor;
-    Node  *prog;
     Parse_Error err;
+    Areno       areno;
+    size_t      cursor;
+    Token      *tokens;
+    Node       *prog;
 } Parser;
 
 typedef struct {
@@ -53,17 +53,18 @@ typedef struct {
 } Args;
 
 typedef struct {
-    bool success_set;
     struct {
-        bool        nullable;
         String_View ident;
+        bool        nullable;
     } success;
 
-    bool error_set;
     struct {
-        bool        nullable;
         String_View ident;
+        bool        nullable;
     } error;
+
+    bool success_set;
+    bool error_set;
 } Node_Type;
 
 typedef struct {
@@ -82,10 +83,10 @@ typedef enum {
 } Assign_Kind;
 
 typedef struct {
-    Assign_Kind kind;
     String_View ident;
     Node       *type_node;
     Node       *value_node;
+    Assign_Kind kind;
 } Node_Assignement;
 
 typedef struct {
@@ -114,7 +115,6 @@ typedef enum {
 } Node_Kind;
 
 struct Node {
-    Node_Kind kind;
     union {
         Node_Funcdef     funcdef;
         Node_Block       block;
@@ -124,6 +124,7 @@ struct Node {
         Node_Type        type;
         Expr            *expression;
     } as;
+    Node_Kind kind;
 };
 
 
@@ -155,7 +156,7 @@ typedef struct {
 } Binary_Op;
 
 typedef struct {
-    String_View name;
+    Expr *callee;
     struct {
         Node  *items;
         size_t count;
@@ -163,7 +164,6 @@ typedef struct {
 } Funcall;
 
 struct Expr {
-    Expr_Kind kind;
     union {
         String_View str;
         String_View ident;
@@ -172,6 +172,7 @@ struct Expr {
         Funcall     funcall;
         int         number;
     } as;
+    Expr_Kind kind;
 };
 
 Node *parser_parse (Parser *parser);
@@ -194,7 +195,6 @@ Node *parse_func_arg(Parser *parser);
 
 // Block
 Node *parse_block        (Parser *parser);
-Node *parse_bloc_defer   (Parser *parser); // TODO!
 
 Node *parse_type_expr    (Parser *parser);
 
@@ -204,7 +204,7 @@ Node *parse_expr_equal   (Parser *parser);
 Node *parse_expr_add     (Parser *parser);
 Node *parse_expr_mul     (Parser *parser);
 Node *parse_expr_unary   (Parser *parser);
-Node *parse_expr_primary (Parser *parser); // TODO!
+Node *parse_expr_primary (Parser *parser);
 Node *parse_expr_funcall (Parser *parser);
 
 // Terminal

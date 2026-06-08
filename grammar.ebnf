@@ -1,14 +1,21 @@
-program      ::= { statement } ;
+program      ::= { declaration } ;
 
-# Statements
-statement     ::=
-    | stmt-assign [ ';' ]
-    | stmt-if
-    | stmt-while
-    | block
-    | expression [ ';' ]
+# Declaration
+declaration ::=
+    | stmt-assign
+    | statement
     | func-def
 ;
+
+# Statements
+statement ::=
+    | stmt-block
+    | stmt-reassign
+    | stmt-if
+    | stmt-while
+    | expression
+;
+stmt-block    ::= '{' { declaration } '}';
 stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
 stmt-reassign ::= ident '=' expression | block ;
 stmt-if       ::= 'if'    ((['('] expression [')']) | expression) statement ['else' statement] ;
@@ -16,25 +23,36 @@ stmt-while    ::= 'while' ((['('] expression [')']) | expression) statement ;
 stmt-for      ::= # TODO
 
 # Function
-func-def    ::= term-ident '::' '(' { argument } ')' ':' type-expr block ;
-func-arg    ::= term-ident ':' type-expr ;
-
-# Blocks
-block        ::= '{' { statement | bloc-defer } '}';
-bloc-defer   ::= 'defer' statement
+func-def  ::= 'fun' term-ident ':' '(' { func-arg } ')' '->' type-expr '=' block ;
+func-arg  ::= term-ident ':' type-expr ;
+func-type ::= '(' { type-expr } ')' '->' type-expr ;
 
 # Types
 type-expr     ::= term-optional [ '!' type-optional ] ;
 type-optional ::= [ '?' ] term-ident ;
 
+# Data
+data-struct  ::= 'struct' [ '(' term-ident ')' ] [ term-ident ] '=' '{' { struct-field } '}' ;
+struct-field ::= term-ident ':' type-expr { ',' term-ident ':' type-expr } ;
+
+data-enum    ::= 'enum'   [ '(' term-ident ')' ] [ term-ident ] '=' '{' { enum-field } '}' ;
+enum-fields  ::= term-ident { ',' term-ident } ;
+# Need more reflexion to implement proper algebric type
+
 # Expressions (lower have priority)
-expression   ::= expr-equal                                                    ;
+expression   ::= expr-or ;
+expr-or      ::= expr-and   { 'or' expr-and } ;
+expr-and     ::= expr-equal { 'and' expr-equal } ;
 expr-equal   ::= expr-add { ('<' | '>' | '==' | '!=' | '<=' | '>=') expr-add } ;
 expr-add     ::= expr-mul { ('+' | '-') expr-mul }                             ;
 expr-mul     ::= expr-unary { ('*' | '/' | '%') expr-unary }                   ;
-expr-unary   ::= { '!' | '-' } expr-primary                                    ;
-expr-primary ::= expr-funcall | '(' expression ')' | terminal                  ;
-expr-funcall ::= term-indent '(' [ expression { ',' expression } [ ',' ] ] ')' ;
+expr-unary   ::= { '!' | '-' } expr-unary
+             | expr-funcall ;
+expr-funcall ::= primary { '(' { funcall-arg } ')' } ;
+expr-primary ::= '(' expression ')' | terminal ;
+
+funcall-arg  ::= expression { ',' expression } [ ',' ]
+
 
 # Terminal
 terminal     ::= term-ident | term-string | term-number      ;

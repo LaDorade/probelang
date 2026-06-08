@@ -7,8 +7,10 @@
 #include "string_view.h"
 
 typedef struct {
-    size_t      cursor;
     String_View sv;
+    size_t      cursor;
+    // save the indice of start of current Token
+    size_t      start;
     size_t      col, row;
     bool        eof;
 } Lexer;
@@ -74,10 +76,13 @@ typedef enum {
     Lex_match,
     Lex_switch,
     Lex_break,
+    Lex_or,
+    Lex_and,
 
     Lex_do,
     Lex_while,
     Lex_for,
+    Lex_continue,
 
     Lex_try,
     Lex_catch,
@@ -94,22 +99,27 @@ typedef enum {
 } Lexeme;
 
 typedef struct {
-    Lexeme kind;
-    size_t row;
-    size_t col;
     union {
         int         number;
         String_View string;
         String_View ident;
     } as;
+
+    size_t lex_size;
+    size_t row;
+    size_t col;
+    Lexeme kind;
 } Token;
 
 Token*      lexer_lex(Lexer* lexer, Areno* areno);
+
 char        lex_peek(const Lexer *lex);
 void        lex_advance(Lexer *lex);
 bool        lex_match(Lexer *lex, char c);
 const char* lex_print(Lexeme lexeme);
-char*       token_print(const Token *tok, Areno *areno);
+
+Token       token_create(const Lexer *lexer, Lexeme lexeme);
+char*       token_print (const Token *tok, Areno *areno);
 
 #endif //LEXER_H_
 
