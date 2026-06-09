@@ -274,11 +274,9 @@ Node *parse_stmt_if(Parser *parser)
 
     /* Parse if exmpression */
     parser_expect(parser, Lex_if);
-    bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
     Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
     node->as.if_node.condition = expr;
-    if (used_bracket) parser_expect(parser, Lex_Close_bracket);
 
     /* Parse if nodé */
     Node *if_node = parse_statement(parser);
@@ -301,11 +299,9 @@ Node *parse_stmt_while(Parser *parser)
 
     /* Parse while exmpression */
     parser_expect(parser, Lex_while);
-    bool used_bracket = parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid;
     Node *expr = parse_expression(parser);
     if (expr == NULL) return NULL;
     node->as.while_node.condition = expr;
-    if (used_bracket) parser_expect(parser, Lex_Close_bracket);
 
     /* Parse while nodé */
     Node *while_node = parse_statement(parser);
