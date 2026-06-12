@@ -71,7 +71,7 @@ int main(void)
         .cursor = 0,
     };
 
-    Node *prog = parser_parse(&parser);
+    Stmt *prog = parser_parse(&parser);
     // areno_free(&lex_areno);
     if (prog == NULL) {
         size_t start = parser.err.guilty.col - parser.err.guilty.lex_size;
@@ -93,7 +93,7 @@ int main(void)
         return 1;
     }
 
-    dump_node(prog, 0);
+    dump_stmt(prog, 0);
 
     // parser_free(&parser);
 
