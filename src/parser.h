@@ -11,7 +11,8 @@
 #include "lexer.h"
 
 typedef struct Expr Expr;
-typedef struct Node Node;
+typedef struct Stmt Stmt;
+typedef struct Stmt_Type Stmt_Type;
 
 typedef enum {
     Parse_Err_NoError = 0,
@@ -34,17 +35,17 @@ typedef struct {
     Areno       areno;
     size_t      cursor;
     Token      *tokens;
-    Node       *prog;
+    Stmt       *prog;
 } Parser;
 
 typedef struct {
-    Node  *items;
+    Stmt  *items;
     size_t count;
-} Node_Block;
+} Stmt_Block;
 
 typedef struct {
-    String_View name;
-    Node       *type;
+    Token      name;
+    Stmt_Type *type;
 } Arg;
 
 typedef struct {
@@ -52,27 +53,27 @@ typedef struct {
     size_t count;
 } Args;
 
-typedef struct {
+struct Stmt_Type {
     struct {
-        String_View ident;
-        bool        nullable;
+        Token name;
+        bool  nullable;
     } success;
 
     struct {
-        String_View ident;
-        bool        nullable;
+        Token name;
+        bool  nullable;
     } error;
 
     bool success_set;
     bool error_set;
-} Node_Type;
+};
 
 typedef struct {
-    String_View name;
-    Args        args;
-    Node       *return_type_node;
-    Node       *block;
-} Node_Funcdef;
+    Token name; // can be of kind Tok_Invalid (anonymous function)
+    Args  args;
+    Stmt_Type  *return_type_stmt;
+    Stmt_Block *block;
+} Stmt_Funcdef;
 
 typedef enum {
     AssignKind_Invalid = 0,
@@ -83,48 +84,48 @@ typedef enum {
 } Assign_Kind;
 
 typedef struct {
-    String_View ident;
-    Node       *type_node;
-    Node       *value_node;
+    Token name;
+    Stmt      *value_stmt; // expr or block
+    Stmt_Type *type_stmt;
     Assign_Kind kind;
-} Node_Assignement;
+} Stmt_Assignement;
 
 typedef struct {
-    Node *condition; // expression
-    Node *ok_node; // 1 statement
-    Node *ko_node; // 1 statement (NULL if no else)
-} Node_If;
+    Expr *condition; // expression
+    Stmt *ok_stmt; // 1 statement
+    Stmt *ko_stmt; // 1 statement (NULL if no else)
+} Stmt_If;
 
 typedef struct {
-    Node *condition; // expression
-    Node *ok_node; // 1 statement
-} Node_While;
+    Expr *condition; // expression
+    Stmt *ok_stmt; // 1 statement
+} Stmt_While;
 
 typedef enum {
-    NodeKind_Invalid = 0,
+    StmtKind_Invalid = 0,
 
-    NodeKind_Funcdef,
-    NodeKind_Block,
-    NodeKind_Assignement,
-    NodeKind_If,
-    NodeKind_While,
-    NodeKind_Expression,
-    NodeKind_Type,
+    StmtKind_Funcdef,
+    StmtKind_Block,
+    StmtKind_Assignement,
+    StmtKind_If,
+    StmtKind_While,
+    StmtKind_Expression,
+    StmtKind_Type,
 
-    NodeKind_LastNode,
-} Node_Kind;
+    StmtKind_LastStmt,
+} Stmt_Kind;
 
-struct Node {
+struct Stmt {
     union {
-        Node_Funcdef     funcdef;
-        Node_Block       block;
-        Node_Assignement assignement;
-        Node_If          if_node;
-        Node_While       while_node;
-        Node_Type        type;
-        Expr            *expression;
+        Stmt_Funcdef     funcdef;
+        Stmt_Block       block;
+        Stmt_Assignement assignement;
+        Stmt_If          if_stmt;
+        Stmt_While       while_stmt;
+        Stmt_Type        type;
+        Expr            *expr_stmt;
     } as;
-    Node_Kind kind;
+    Stmt_Kind kind;
 };
 
 
@@ -145,20 +146,20 @@ typedef enum {
 } Expr_Kind;
 
 typedef struct {
-    Node  *expr;
+    Expr  *expr;
     Lexeme operand;
 } Unary_Op ;
 
 typedef struct {
-    Node  *lhs;
-    Node  *rhs;
+    Expr  *lhs;
+    Expr  *rhs;
     Lexeme operand;
 } Binary_Op;
 
 typedef struct {
     Expr *callee;
     struct {
-        Node  *items;
+        Expr  *items;
         size_t count;
     } args;
 } Funcall;
@@ -170,45 +171,50 @@ struct Expr {
         Binary_Op   binary_op;
         Unary_Op    unary_op;
         Funcall     funcall;
-        int         number;
+        double      number;
     } as;
     Expr_Kind kind;
 };
 
-Node *parser_parse (Parser *parser);
+/////////////////////// PARSING ////////////////////////////////
+
+Stmt *parser_parse (Parser *parser);
 void  parser_free  (Parser *parser);
 
-Node *parser_create_nodes(Parser *parser, size_t nb);
-Node *parser_create_node (Parser *parser, Node_Kind kind);
+Stmt *parser_create_stmts(Parser *parser, size_t nb);
+Stmt *parser_create_stmt (Parser *parser, Stmt_Kind kind);
+Expr *parser_create_exprs(Parser *parser, size_t nb);
 Expr *parser_create_expr (Parser *parser, Expr_Kind kind);
 
 // Statement
-Node *parse_statement  (Parser *parser);
-Node *parse_stmt_assign(Parser *parser);
-Node *parse_stmt_if    (Parser *parser);
-Node *parse_stmt_while (Parser *parser);
-Node *parse_stmt_for   (Parser *parser); // TODO!
+Stmt *parse_statement  (Parser *parser);
+Stmt *parse_stmt_assign(Parser *parser);
+Stmt *parse_stmt_if    (Parser *parser);
+Stmt *parse_stmt_while (Parser *parser);
+Stmt *parse_stmt_for   (Parser *parser); // TODO!
 
 // Function
-Node *parse_func_def(Parser *parser);
-Node *parse_func_arg(Parser *parser);
+Stmt *parse_func_def(Parser *parser);
+Stmt *parse_func_arg(Parser *parser);
 
 // Block
-Node *parse_block        (Parser *parser);
+Stmt_Block *parse_block  (Parser *parser);
 
-Node *parse_type_expr    (Parser *parser);
+Stmt_Type  *parse_type_expr    (Parser *parser);
 
 // Expressions
-Node *parse_expression   (Parser *parser);
-Node *parse_expr_equal   (Parser *parser);
-Node *parse_expr_add     (Parser *parser);
-Node *parse_expr_mul     (Parser *parser);
-Node *parse_expr_unary   (Parser *parser);
-Node *parse_expr_primary (Parser *parser);
-Node *parse_expr_funcall (Parser *parser);
+Expr *parse_expression   (Parser *parser);
+Expr *parse_expr_equal   (Parser *parser);
+Expr *parse_expr_add     (Parser *parser);
+Expr *parse_expr_mul     (Parser *parser);
+Expr *parse_expr_unary   (Parser *parser);
+Expr *parse_expr_primary (Parser *parser);
+Expr *parse_expr_funcall (Parser *parser);
 
 // Terminal
-Node *parse_terminal     (Parser *parser);
+Expr *parse_terminal     (Parser *parser);
+
+/////////////////////// UTILS ////////////////////////////////
 
 Token parser_peek   (Parser *parser);
 Token parser_prev   (Parser *parser);
@@ -220,8 +226,11 @@ Token __parser_match_impl(Parser *parser, ...);
 
 void  parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind);
 
+/////////////////////// DUMPING ////////////////////////////////
 
-void  dump_expression (Expr *expr, int level);
-void  dump_node(Node *node, int level);
+void dump_stmt_block(Stmt_Block *block, int level);
+void dump_stmt_type(Stmt_Type *type, int level);
+void dump_expression (Expr *expr, int level);
+void dump_stmt(Stmt *stmt, int level);
 
 #endif //PARSER_H_

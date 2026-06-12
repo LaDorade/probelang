@@ -1,7 +1,13 @@
 fun main: () -> void!error = {
-    let snoup: i32!error = 32
-    let aaa: ?ouille = 23
-    aaa(1, 2)( "snoup" )
-    bijour + 1
+    let a = {
+        1
+    }
+    {
+        bijour()
+    }
+    const snoup = fn()()()
+    const presnoup1 = fn()
+    const presnoup2 = presnoup1()
+    const snoup = presnoup2()
 }
 

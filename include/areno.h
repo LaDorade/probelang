@@ -27,6 +27,11 @@
 #define  ARENO_FREE free
 #endif //ARENO_FREE
 
+#ifndef  ARENO_MEMSET
+#include <string.h>
+#define  ARENO_MEMSET memset
+#endif //ARENO_MEMSET
+
 #ifndef  ARENO_CAPACITY
 #define  ARENO_CAPACITY 1024*1024 // 1MB
 #endif //ARENO_CAPACITY
@@ -39,6 +44,7 @@ typedef struct Areno {
 } Areno;
 
 void *areno_alloc (Areno* areno, size_t size_in_byte);
+void *areno_calloc(Areno* areno, size_t size_in_byte);
 void  areno_reset (Areno* areno);
 void  areno_free  (Areno* areno);
 char *areno_printf(Areno* areno, const char *fmt, ...);
@@ -96,6 +102,13 @@ void *areno_alloc(Areno* areno, size_t size_in_byte)
 	ARENO_DEBUG("Allocating %zu bytes on region %p. Count is now %zu\n", size_in_byte, areno, areno->count);
 
 	return alloc;
+}
+
+void *areno_calloc(Areno* areno, size_t size_in_byte)
+{
+    void *alloc = areno_alloc(areno, size_in_byte);
+    ARENO_MEMSET(alloc, 0, size_in_byte);
+    return alloc;
 }
 
 void areno_free(Areno* areno)

@@ -1,6 +1,8 @@
 /c3c
 main.dSYM/
 
+*.dSYM*
+
 # builded files
 main
 test
