@@ -100,7 +100,7 @@ typedef enum {
 
 typedef struct {
     union {
-        int         number;
+        double      number;
         String_View string;
         String_View ident;
     } as;
@@ -111,14 +111,21 @@ typedef struct {
     Lexeme kind;
 } Token;
 
-Token*      lexer_lex(Lexer* lexer, Areno* areno);
+Token* lexer_lex (Lexer* lexer, Areno* areno);
+Token  lex_string(Lexer* lexer, Areno* areno);
+Token  lex_digit (Lexer* lexer);
+Token  lex_ident (Lexer* lexer, Areno* areno);
 
-char        lex_peek(const Lexer *lex);
-void        lex_advance(Lexer *lex);
-bool        lex_match(Lexer *lex, char c);
-const char* lex_print(Lexeme lexeme);
 
-Token       token_create(const Lexer *lexer, Lexeme lexeme);
+////////////////// UTILITIES //////////////////////
+char        lexer_peek   (const Lexer *lex);
+void        lexer_advance(Lexer *lex);
+char        lexer_prev   (const Lexer *lex);
+bool        lexer_match  (Lexer *lex, char c);
+Token       token_create (const Lexer *lexer, Lexeme lexeme);
+
+//////////////////// PRINT ////////////////////////
+const char* lexer_print(Lexeme lexeme);
 char*       token_print (const Token *tok, Areno *areno);
 
 #endif //LEXER_H_

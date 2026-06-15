@@ -76,7 +76,7 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
     if (parser_match(parser, lexeme).kind == Lex_Invalid) {
         Token current          = parser_peek(parser);
         Token prev             = parser_prev(parser);
-        const char* lexeme_str = lex_print(lexeme);
+        const char* lexeme_str = lexer_print(lexeme);
         const char* prev_str   = token_print(&prev, &parser->areno);
         const char *curr_str   = token_print(&current, &parser->areno);
 
@@ -355,7 +355,7 @@ Stmt_Type *parse_type_expr(Parser *parser)
         char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
                 current.row,
                 current.col,
-                lex_print(current.kind));
+                lexer_print(current.kind));
         parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
         return NULL;
     }
@@ -372,7 +372,7 @@ Stmt *parse_stmt_assign(Parser *parser)
         char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
                 current.row,
                 current.col,
-                lex_print(current.kind));
+                lexer_print(current.kind));
         parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
         return NULL;
     }
@@ -607,7 +607,7 @@ Expr *parse_terminal(Parser *parser)
     char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected expression, found: '%s'\n",
             current.row,
             current.col,
-            lex_print(current.kind));
+            lexer_print(current.kind));
     parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
     return NULL;
 }
@@ -788,7 +788,7 @@ void dump_expression (Expr *expr, int level)
             dump_expression(expr->as.binary_op.lhs, level + 1);
 
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Operator: %s\n", lex_print((Lexeme) expr->as.binary_op.operand));
+            printf("Operator: %s\n", lexer_print((Lexeme) expr->as.binary_op.operand));
 
             dump_expression(expr->as.binary_op.rhs, level + 1);
 
@@ -806,7 +806,7 @@ void dump_expression (Expr *expr, int level)
             printf("Unary:\n");
 
             for (int i = 0; i < level + 1; i++) printf(" ");
-            printf("Operator: %s\n", lex_print((Lexeme) expr->as.unary_op.operand));
+            printf("Operator: %s\n", lexer_print((Lexeme) expr->as.unary_op.operand));
 
             dump_expression(expr->as.unary_op.expr, level + 1);
 
