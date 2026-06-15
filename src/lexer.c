@@ -104,6 +104,16 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 kind = lex_match(lexer, '>') ? Lex_Arrow_Right : Lex_Minus;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
+            case '/': {
+                if (lex_match(lexer, '/')) { // comment
+                    while (!lexer->eof && !lex_match(lexer, '\n')) {
+                        lex_advance(lexer);
+                    }
+                } else { // divide
+                    kind = Lex_Divide;
+                    tokens[current_tok++] = token_create(lexer, kind);
+                }
+            } continue;
 
             // single char Lexeme
             case ',':
@@ -123,19 +133,19 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '(':
-                kind = Lex_Open_bracket;
+                kind = Lex_Open_Paren;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case ')':
-                kind = Lex_Close_bracket;
+                kind = Lex_Close_Paren;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '{':
-                kind = Lex_Open_brace;
+                kind = Lex_Open_Curly;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '}':
-                kind = Lex_Close_brace;
+                kind = Lex_Close_Curly;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '+':
@@ -144,10 +154,6 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 continue;
             case '*':
                 kind = Lex_Mul;
-                tokens[current_tok++] = token_create(lexer, kind);
-                continue;
-            case '/':
-                kind = Lex_Divide;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '%':
@@ -168,7 +174,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 memset(wordBuf, 0, sizeof(wordBuf));
 
                 // TODO: handle escape char and new lines in strings
-                while ((c = lex_peek(lexer)) != '"') {
+                while (!lexer->eof && (c = lex_peek(lexer)) != '"') {
                     wordBuf[len++] = c;
                     lex_advance(lexer);
                 }
@@ -176,7 +182,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
 
                 char* items = areno_alloc(areno, len);
                 strcpy(items, wordBuf);
-                Token tok = token_create(lexer, Lex_String);
+                Token tok = token_create(lexer, Lex_String_Lit);
                 tok.as.string = (String_View) {
                     .items = items,
                     .len   = len,
@@ -194,7 +200,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
             memset(numBuf, 0, sizeof(numBuf));
             numBuf[len++] = c;
 
-            while (isdigit((c = lex_peek(lexer))))
+            while (!lexer->eof && isdigit((c = lex_peek(lexer))))
             {
                 lex_advance(lexer);
                 numBuf[len++] = c;
@@ -215,7 +221,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
             memset(wordBuf, 0, sizeof(wordBuf));
             wordBuf[len++] = c;
 
-            while (isalnum((c = lex_peek(lexer))))
+            while (!lexer->eof && isalnum((c = lex_peek(lexer))))
             {
                 lex_advance(lexer);
                 wordBuf[len++] = c;
@@ -302,26 +308,26 @@ const char* lex_print(Lexeme lexeme)
 {
     switch (lexeme) {
         // Single char lexeme
-        case Lex_Colon:         return ":";
-        case Lex_Comma:         return ",";
-        case Lex_Semicolon:     return ";";
-        case Lex_Dot:           return ".";
-        case Lex_Open_bracket:  return "(";
-        case Lex_Close_bracket: return ")";
-        case Lex_Open_brace:    return "{";
-        case Lex_Close_brace:   return "}";
-        case Lex_Plus:          return "+";
-        case Lex_Minus:         return "-";
-        case Lex_Mul:           return "*";
-        case Lex_Divide:        return "/";
-        case Lex_Modulo:        return "%";
-        case Lex_Bang:          return "!";
-        case Lex_Question:      return "?";
-        case Lex_Equal:         return "=";
-        case Lex_Lower:         return "<";
-        case Lex_Greater:       return ">";
-        case Lex_Open_square:   return "[";
-        case Lex_Close_square:  return "]";
+        case Lex_Colon:        return ":";
+        case Lex_Comma:        return ",";
+        case Lex_Semicolon:    return ";";
+        case Lex_Dot:          return ".";
+        case Lex_Open_Paren:   return "(";
+        case Lex_Close_Paren:  return ")";
+        case Lex_Open_Curly:   return "{";
+        case Lex_Close_Curly:  return "}";
+        case Lex_Open_Square:  return "[";
+        case Lex_Close_Square: return "]";
+        case Lex_Plus:         return "+";
+        case Lex_Minus:        return "-";
+        case Lex_Mul:          return "*";
+        case Lex_Divide:       return "/";
+        case Lex_Modulo:       return "%";
+        case Lex_Bang:         return "!";
+        case Lex_Question:     return "?";
+        case Lex_Equal:        return "=";
+        case Lex_Lower:        return "<";
+        case Lex_Greater:      return ">";
 
         // Double char lexeme
         case Lex_Colon_Colon:   return "::";
@@ -372,7 +378,7 @@ const char* lex_print(Lexeme lexeme)
 
         case Lex_Ident:  return "IDENT";
         case Lex_Number: return "NUMBER";
-        case Lex_String: return "STRING";
+        case Lex_String_Lit: return "STRING";
 
         case Lex_EOF:     return "EOF";
         case Lex_Invalid: return "INVALID LEXEME";
@@ -392,7 +398,7 @@ char *token_print(const Token *tok, Areno *areno)
 
     if (tok->kind == Lex_Ident) {
         str = areno_printf(areno, string_format, lexeme, (int)tok->as.ident.len, tok->as.ident.items);
-    } else if (tok->kind == Lex_String) {
+    } else if (tok->kind == Lex_String_Lit) {
         str = areno_printf(areno, string_format, lexeme, (int)tok->as.string.len, tok->as.string.items);
     } else if (tok->kind == Lex_Number){
         str = areno_printf(areno, number_format, lexeme, tok->as.number);

@@ -156,7 +156,7 @@ Stmt *parser_parse(Parser *parser)
 Stmt *parse_statement(Parser *parser)
 {
     Token current = parser_peek(parser);
-    if (current.kind == Lex_Open_brace) { // { ... } -- block
+    if (current.kind == Lex_Open_Curly) { // { ... } -- block
         Stmt_Block *block = parse_block(parser); 
         if (block == NULL) return NULL;
         Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
@@ -210,11 +210,11 @@ Stmt *parse_func_def(Parser *parser)
     parser_expect(parser, Lex_Colon);
 
     // args
-    parser_expect(parser, Lex_Open_bracket);
+    parser_expect(parser, Lex_Open_Paren);
 
     Args args = {0};
     args.items = areno_alloc(&parser->areno, sizeof(Arg) * MAX_ARGS);
-    while (!parser_match(parser, Lex_Close_bracket).kind) {
+    while (!parser_match(parser, Lex_Close_Paren).kind) {
         Token arg_name = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
 
@@ -229,7 +229,7 @@ Stmt *parse_func_def(Parser *parser)
 
         // this allow trailing coma
         if (!parser_match(parser, Lex_Comma).kind) {
-            parser_expect(parser, Lex_Close_bracket);
+            parser_expect(parser, Lex_Close_Paren);
             break;
         }
     }
@@ -256,7 +256,7 @@ Stmt *parse_func_def(Parser *parser)
 
 Stmt_Block *parse_block(Parser *parser)
 {
-    parser_expect(parser, Lex_Open_brace);
+    parser_expect(parser, Lex_Open_Curly);
 
     Stmt_Block *block = areno_calloc(&parser->areno, sizeof(Stmt_Block));
     *block = (Stmt_Block) {
@@ -265,8 +265,8 @@ Stmt_Block *parse_block(Parser *parser)
     };
 
     Token current;
-    while ((current = parser_peek(parser)).kind != Lex_Close_brace) {
-        if (current.kind == Lex_Close_brace) {
+    while ((current = parser_peek(parser)).kind != Lex_Close_Curly) {
+        if (current.kind == Lex_Close_Curly) {
             break;
         } else {
             Stmt *stmt = parse_statement(parser);
@@ -275,7 +275,7 @@ Stmt_Block *parse_block(Parser *parser)
         }
     }
 
-    parser_expect(parser, Lex_Close_brace);
+    parser_expect(parser, Lex_Close_Curly);
 
     return block;
 }
@@ -404,7 +404,7 @@ Stmt *parse_stmt_assign(Parser *parser)
 
     Stmt *value = NULL;
     // parse as block
-    if (parser_peek(parser).kind == Lex_Open_brace) {
+    if (parser_peek(parser).kind == Lex_Open_Curly) {
         Stmt_Block *block = parse_block(parser);
         if (block == NULL) return NULL;
         Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
@@ -532,7 +532,7 @@ Expr *parse_expr_funcall(Parser *parser)
     Expr *expr = parse_expr_primary(parser);
     if (expr == NULL) return NULL;
 
-    while (parser_match(parser, Lex_Open_bracket).kind != Lex_Invalid) {
+    while (parser_match(parser, Lex_Open_Paren).kind != Lex_Invalid) {
         Expr *funcall = parser_create_expr(parser, Expr_Funcall);
         funcall->as.funcall = (Funcall) {
             .callee = expr,
@@ -543,14 +543,14 @@ Expr *parse_expr_funcall(Parser *parser)
         };
 
         // args
-        while (parser_match(parser, Lex_Close_bracket).kind == Lex_Invalid) {
+        while (parser_match(parser, Lex_Close_Paren).kind == Lex_Invalid) {
             Expr *arg = parse_expression(parser);
             if (arg == NULL) return NULL;
             funcall->as.funcall.args.items[funcall->as.funcall.args.count++] = *arg;
 
             // this allow trailing coma
             if (!parser_match(parser, Lex_Comma).kind) {
-                parser_expect(parser, Lex_Close_bracket);
+                parser_expect(parser, Lex_Close_Paren);
                 break;
             }
         }
@@ -566,11 +566,11 @@ Expr *parse_expr_primary(Parser *parser)
 {
     Expr *expr = NULL;
     Token current = parser_peek(parser);
-    if (current.kind == Lex_Open_bracket) {
-        parser_expect(parser, Lex_Open_bracket);
+    if (current.kind == Lex_Open_Paren) {
+        parser_expect(parser, Lex_Open_Paren);
         expr = parse_expression(parser);
         if (expr == NULL) return NULL;
-        parser_expect(parser, Lex_Close_bracket);
+        parser_expect(parser, Lex_Close_Paren);
     } else {
         expr = parse_terminal(parser);
         if (expr == NULL) return NULL;
@@ -589,8 +589,8 @@ Expr *parse_terminal(Parser *parser)
         expr->as.ident = sv_copy(&parser->areno, &current.as.ident);
         return expr;
 
-    } else if (current.kind == Lex_String) { // "snoup"
-        parser_expect(parser, Lex_String);
+    } else if (current.kind == Lex_String_Lit) { // "snoup"
+        parser_expect(parser, Lex_String_Lit);
         // "snoup"
         Expr *expr = parser_create_expr(parser, Expr_String);
         expr->as.str = sv_copy(&parser->areno, &current.as.string);

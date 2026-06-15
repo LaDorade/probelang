@@ -23,10 +23,12 @@ typedef enum {
     Lex_Comma,         // ,
     Lex_Semicolon,     // ;
     Lex_Dot,           // .
-    Lex_Open_bracket,  // (
-    Lex_Close_bracket, // )
-    Lex_Open_brace,    // {
-    Lex_Close_brace,   // }
+    Lex_Open_Paren,    // (
+    Lex_Close_Paren,   // )
+    Lex_Open_Curly,    // {
+    Lex_Close_Curly,   // }
+    Lex_Open_Square,   // [
+    Lex_Close_Square,  // ]
     Lex_Plus,          // +
     Lex_Minus,         // -
     Lex_Mul,           // *
@@ -37,8 +39,6 @@ typedef enum {
     Lex_Equal,         // =
     Lex_Lower,         // <
     Lex_Greater,       // >
-    Lex_Open_square,   // [
-    Lex_Close_square,  // ]
 
     // Double char lexeme
     Lex_Colon_Colon,   // ::
@@ -46,7 +46,7 @@ typedef enum {
     Lex_Greater_Equal, // >=
     Lex_Equal_Equal,   // ==
     Lex_Not_Equal,     // !=
-    Lex_Arrow_Right,         // ->
+    Lex_Arrow_Right,   // ->
 
     // KEYWORDS
     Lex_struct,
@@ -92,7 +92,7 @@ typedef enum {
     // Multi
     Lex_Ident,
     Lex_Number,
-    Lex_String,
+    Lex_String_Lit,
 
     Lex_EOF,
     Lex_LastLex = Lex_EOF
