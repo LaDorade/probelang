@@ -41,12 +41,16 @@ typedef enum {
     Lex_Greater,       // >
 
     // Double char lexeme
+    Lex_Dot_Dot,       // ..
     Lex_Colon_Colon,   // ::
     Lex_Lower_Equal,   // <=
     Lex_Greater_Equal, // >=
     Lex_Equal_Equal,   // ==
     Lex_Not_Equal,     // !=
     Lex_Arrow_Right,   // ->
+
+    // Triple char lexeme
+    Lex_Dot_Dot_Dot,   // ...
 
     // KEYWORDS
     Lex_struct,
@@ -118,11 +122,11 @@ Token  lex_ident (Lexer* lexer, Areno* areno);
 
 
 ////////////////// UTILITIES //////////////////////
-char        lexer_peek   (const Lexer *lex);
-void        lexer_advance(Lexer *lex);
-char        lexer_prev   (const Lexer *lex);
-bool        lexer_match  (Lexer *lex, char c);
-Token       token_create (const Lexer *lexer, Lexeme lexeme);
+char  lexer_peek   (const Lexer *lex);
+void  lexer_advance(Lexer *lex);
+char  lexer_prev   (const Lexer *lex);
+bool  lexer_match  (Lexer *lex, char c);
+Token token_create (const Lexer *lexer, Lexeme lexeme);
 
 //////////////////// PRINT ////////////////////////
 const char* lexer_print(Lexeme lexeme);

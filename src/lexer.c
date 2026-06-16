@@ -86,6 +86,16 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
 
         switch (c) {
             Lexeme kind = Lex_Invalid;
+            // tripe char Lexemes with double or simple char alt
+            case '.':
+                kind = lexer_match(lexer, '.')
+                    ? lexer_match(lexer, '.')
+                        ? Lex_Dot_Dot_Dot
+                        : Lex_Dot_Dot
+                    : Lex_Dot;
+                tokens[current_tok++] = token_create(lexer, kind);
+                continue;
+
             // double char Lexemes with single char alt
             case ':':
                 kind = lexer_match(lexer, ':') ? Lex_Colon_Colon : Lex_Colon;
@@ -129,10 +139,6 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 continue;
             case '?':
                 kind = Lex_Question;
-                tokens[current_tok++] = token_create(lexer, kind);
-                continue;
-            case '.':
-                kind = Lex_Dot;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case ';':
@@ -183,12 +189,13 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
         }
 
         if (isdigit(c)) {
-            tokens[current_tok++] = lex_digit(lexer, areno);
+            tokens[current_tok++] = lex_digit(lexer);
         } else if (isalpha(c)) { // ident OR keyword
             tokens[current_tok++] = lex_ident(lexer, areno);
         } else if (isspace(c)) {
             continue;
         } else {
+            // TODO: lexer error handling
             printf("Unknown token: %c at %ld:%ld\n", c, lexer->row, lexer->col);
         }
     }
@@ -202,7 +209,7 @@ Token lex_string(Lexer *lexer, Areno *areno)
     memset(wordBuf, 0, sizeof(wordBuf));
 
     char c = '\0';
-    // TODO: handle escape char and new lines in strings
+    // TODO: handle escaped char
     while (!lexer->eof && (c = lexer_peek(lexer)) != '"') {
         wordBuf[len++] = c;
         lexer_advance(lexer);
