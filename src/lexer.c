@@ -63,10 +63,10 @@ inline Token token_create(const Lexer* lex, Lexeme lexeme)
 }
 
 // Start the lexer, reset cursor, col & row
-Token* lexer_lex(Lexer *lexer, Areno* areno)
+Token* lexer_lex(Lexer *lexer)
 {
     size_t current_tok = 0;
-    Token* tokens = (Token*) areno_alloc(areno, sizeof(Token) * BUF_SIZE);
+    Token* tokens = (Token*) areno_alloc(lexer->areno, sizeof(Token) * BUF_SIZE);
 
     // Reset lexer to the start
     lexer->cursor = 0;
@@ -182,7 +182,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
             case '"':
-                tokens[current_tok++] = lex_string(lexer, areno);
+                tokens[current_tok++] = lex_string(lexer);
                 continue;
             default:
                 break;
@@ -191,7 +191,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
         if (isdigit(c)) {
             tokens[current_tok++] = lex_digit(lexer);
         } else if (isalpha(c)) { // ident OR keyword
-            tokens[current_tok++] = lex_ident(lexer, areno);
+            tokens[current_tok++] = lex_ident(lexer);
         } else if (isspace(c)) {
             continue;
         } else {
@@ -202,7 +202,7 @@ Token* lexer_lex(Lexer *lexer, Areno* areno)
     return tokens;
 }
 
-Token lex_string(Lexer *lexer, Areno *areno)
+Token lex_string(Lexer *lexer)
 {
     size_t len = 0;
     char wordBuf[BUF_SIZE];
@@ -216,7 +216,7 @@ Token lex_string(Lexer *lexer, Areno *areno)
     }
     lexer_advance(lexer); // closing "
 
-    char* items = areno_alloc(areno, len);
+    char* items = areno_alloc(lexer->areno, len);
     strcpy(items, wordBuf);
     Token tok = token_create(lexer, Lex_String_Lit);
     tok.as.string = (String_View) {
@@ -249,7 +249,7 @@ Token lex_digit(Lexer *lexer)
     return tok;
 }
 
-Token lex_ident(Lexer *lexer, Areno *areno)
+Token lex_ident(Lexer *lexer)
 {
     char c = lexer_prev(lexer);
     size_t len = 0;
@@ -319,7 +319,7 @@ Token lex_ident(Lexer *lexer, Areno *areno)
     else if (strcmp(wordBuf, "catch")  == 0)
         tok.kind = Lex_catch;
     else {
-        char* items = areno_alloc(areno, len);
+        char* items = areno_alloc(lexer->areno, len);
         strcpy(items, wordBuf);
 
         tok.kind = Lex_Ident;
@@ -358,12 +358,16 @@ const char* lexer_print(Lexeme lexeme)
         case Lex_Greater:      return ">";
 
         // Double char lexeme
+        case Lex_Dot_Dot:       return "..";
         case Lex_Colon_Colon:   return "::";
         case Lex_Lower_Equal:   return "<=";
         case Lex_Greater_Equal: return ">=";
         case Lex_Equal_Equal:   return "==";
         case Lex_Not_Equal:     return "!=";
         case Lex_Arrow_Right:   return "->";
+
+        // Double char lexeme
+        case Lex_Dot_Dot_Dot:   return "...";
 
         // KEYWORDS
         case Lex_struct:    return "struct";

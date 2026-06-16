@@ -32,7 +32,7 @@ typedef struct {
 
 typedef struct {
     Parse_Error err;
-    Areno       areno;
+    Areno      *areno;
     size_t      cursor;
     Token      *tokens;
     Stmt       *prog;
@@ -179,7 +179,6 @@ struct Expr {
 /////////////////////// PARSING ////////////////////////////////
 
 Stmt *parser_parse (Parser *parser);
-void  parser_free  (Parser *parser);
 
 Stmt *parser_create_stmts(Parser *parser, size_t nb);
 Stmt *parser_create_stmt (Parser *parser, Stmt_Kind kind);

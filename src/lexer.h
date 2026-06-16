@@ -8,6 +8,7 @@
 
 typedef struct {
     String_View sv;
+    Areno      *areno;
     size_t      cursor;
     // save the indice of start of current Token
     size_t      start;
@@ -115,10 +116,10 @@ typedef struct {
     Lexeme kind;
 } Token;
 
-Token* lexer_lex (Lexer* lexer, Areno* areno);
-Token  lex_string(Lexer* lexer, Areno* areno);
+Token* lexer_lex (Lexer* lexer);
+Token  lex_string(Lexer* lexer);
 Token  lex_digit (Lexer* lexer);
-Token  lex_ident (Lexer* lexer, Areno* areno);
+Token  lex_ident (Lexer* lexer);
 
 
 ////////////////// UTILITIES //////////////////////

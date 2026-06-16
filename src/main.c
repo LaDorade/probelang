@@ -55,24 +55,23 @@ int main(void)
         return 1;
     }
 
-    Areno lex_areno   = {0};
+    Areno global_areno = {0};
 
+    String_View text = {buf, strlen(buf)};
     Lexer lexer = (Lexer) {
-        .sv = (String_View) {
-            .items = buf,
-            .len   = strlen(buf),
-        },
-        .cursor = 0,
+        .sv    = text,
+        .areno = &global_areno,
     };
-    Token* tokens = lexer_lex(&lexer, &lex_areno);
+    Token* tokens = lexer_lex(&lexer);
 
     Parser parser = (Parser) {
         .tokens = tokens,
         .cursor = 0,
+        .areno  = &global_areno,
     };
 
+
     Stmt *prog = parser_parse(&parser);
-    // areno_free(&lex_areno);
     if (prog == NULL) {
         size_t start = parser.err.guilty.col - parser.err.guilty.lex_size;
         size_t row = parser.err.guilty.row;
@@ -89,13 +88,11 @@ int main(void)
         printf("\n");
 
         fflush(stdout);
-        parser_free(&parser);
         return 1;
     }
 
     dump_stmt(prog, 0);
 
-    // parser_free(&parser);
-
+    areno_free(&global_areno);
     return 0;
 }

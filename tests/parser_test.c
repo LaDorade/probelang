@@ -22,17 +22,20 @@ typedef struct {
 } Test;
 Test test = {0};
 
-Lexer  lexer       = {0};
-Parser parser      = {0};
-Token *tokens      = NULL;
-Stmt  *prog        = NULL;
-Areno  lex_areno   = {0};
+Areno  global_areno = {0};
+Lexer  lexer        = {0};
+Parser parser       = {0};
+Token *tokens       = NULL;
+Stmt  *prog         = NULL;
 
 void setup_test(char *buf)
 {
-    lexer  = (Lexer)  {0};
-    parser_free(&parser);
+    lexer = (Lexer) {0};
+    lexer.areno = &global_areno;
+
     parser = (Parser) {0};
+    parser.areno = &global_areno;
+
     tokens = NULL;
     prog   = NULL;
 
@@ -40,7 +43,7 @@ void setup_test(char *buf)
         .items = buf,
         .len   = strlen(buf),
     };
-    tokens = lexer_lex(&lexer, &lex_areno);
+    tokens = lexer_lex(&lexer);
     parser.tokens = tokens;
     prog = parser_parse(&parser);
 
@@ -432,10 +435,9 @@ int main()
         printf("[TEST] Nested funcall (like 'fn()()()')\n");
     }
 
-    areno_free(&lex_areno  );
-    parser_free(&parser);
-
     printf("-- END %s\n", __FILE__);
+
+    areno_free(&global_areno);
     return 0;
 }
 

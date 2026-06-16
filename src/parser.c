@@ -77,10 +77,10 @@ bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
         Token current          = parser_peek(parser);
         Token prev             = parser_prev(parser);
         const char* lexeme_str = lexer_print(lexeme);
-        const char* prev_str   = token_print(&prev, &parser->areno);
-        const char *curr_str   = token_print(&current, &parser->areno);
+        const char* prev_str   = token_print(&prev, parser->areno);
+        const char *curr_str   = token_print(&current, parser->areno);
 
-        char *err_msg = areno_printf(&parser->areno,
+        char *err_msg = areno_printf(parser->areno,
                 "Expected '%s' after '%s', got '%s'\n",
                 lexeme_str,
                 prev_str,
@@ -103,14 +103,9 @@ void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
     };
 }
 
-void parser_free(Parser *parser)
-{
-    areno_free(&parser->areno);
-}
-
 Stmt *parser_create_stmts(Parser *parser, size_t nb)
 {
-    Stmt *stmts = (Stmt*) areno_alloc(&parser->areno, sizeof(Stmt) * nb);
+    Stmt *stmts = (Stmt*) areno_alloc(parser->areno, sizeof(Stmt) * nb);
     memset(stmts, 0, sizeof(Stmt) * nb);
     return stmts;
 }
@@ -122,13 +117,13 @@ Stmt *parser_create_stmt(Parser *parser, Stmt_Kind kind)
 }
 Expr *parser_create_exprs(Parser *parser, size_t nb)
 {
-    Expr *exprs = (Expr*) areno_alloc(&parser->areno, sizeof(Expr) * nb);
+    Expr *exprs = (Expr*) areno_alloc(parser->areno, sizeof(Expr) * nb);
     memset(exprs, 0, sizeof(Stmt) * nb);
     return exprs;
 }
 Expr *parser_create_expr(Parser *parser, Expr_Kind kind)
 {
-    Expr *expr = (Expr*) areno_alloc(&parser->areno, sizeof(Expr));
+    Expr *expr = (Expr*) areno_alloc(parser->areno, sizeof(Expr));
     memset(expr, 0, sizeof(Expr));
     expr->kind = kind;
     return expr;
@@ -213,7 +208,7 @@ Stmt *parse_func_def(Parser *parser)
     parser_expect(parser, Lex_Open_Paren);
 
     Args args = {0};
-    args.items = areno_alloc(&parser->areno, sizeof(Arg) * MAX_ARGS);
+    args.items = areno_alloc(parser->areno, sizeof(Arg) * MAX_ARGS);
     while (!parser_match(parser, Lex_Close_Paren).kind) {
         Token arg_name = parser_peek(parser);
         parser_expect(parser, Lex_Ident);
@@ -258,7 +253,7 @@ Stmt_Block *parse_block(Parser *parser)
 {
     parser_expect(parser, Lex_Open_Curly);
 
-    Stmt_Block *block = areno_calloc(&parser->areno, sizeof(Stmt_Block));
+    Stmt_Block *block = areno_calloc(parser->areno, sizeof(Stmt_Block));
     *block = (Stmt_Block) {
         .count = 0,
         .items = parser_create_stmts(parser, BUF_SIZE)
@@ -327,7 +322,7 @@ Stmt *parse_stmt_while(Parser *parser)
 // type-optional ::= [ '?' ] term-ident ;
 Stmt_Type *parse_type_expr(Parser *parser)
 {
-    Stmt_Type *type = areno_calloc(&parser->areno, sizeof(Stmt_Type));
+    Stmt_Type *type = areno_calloc(parser->areno, sizeof(Stmt_Type));
 
     Token current;
     bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
@@ -352,7 +347,7 @@ Stmt_Type *parse_type_expr(Parser *parser)
 
     if (!type->success_set && !type->error_set) {
         current = parser_peek(parser);
-        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
+        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
                 current.row,
                 current.col,
                 lexer_print(current.kind));
@@ -369,7 +364,7 @@ Stmt *parse_stmt_assign(Parser *parser)
     Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
     if (current.kind == Lex_Invalid) {
         current = parser_peek(parser);
-        char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
+        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
                 current.row,
                 current.col,
                 lexer_print(current.kind));
@@ -586,14 +581,14 @@ Expr *parse_terminal(Parser *parser)
     if (current.kind == Lex_Ident) { // x
         parser_expect(parser, Lex_Ident);
         Expr *expr = parser_create_expr(parser, Expr_Ident);
-        expr->as.ident = sv_copy(&parser->areno, &current.as.ident);
+        expr->as.ident = sv_copy(parser->areno, &current.as.ident);
         return expr;
 
     } else if (current.kind == Lex_String_Lit) { // "snoup"
         parser_expect(parser, Lex_String_Lit);
         // "snoup"
         Expr *expr = parser_create_expr(parser, Expr_String);
-        expr->as.str = sv_copy(&parser->areno, &current.as.string);
+        expr->as.str = sv_copy(parser->areno, &current.as.string);
         return expr;
 
     } else if (current.kind == Lex_Number) { // 23
@@ -604,7 +599,7 @@ Expr *parse_terminal(Parser *parser)
         return expr;
 
     }
-    char *err = areno_printf(&parser->areno, "ERROR at %zu:%zu: Expected expression, found: '%s'\n",
+    char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected expression, found: '%s'\n",
             current.row,
             current.col,
             lexer_print(current.kind));
