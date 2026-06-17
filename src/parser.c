@@ -9,126 +9,6 @@
 #define MAX_ARGS 10
 #define BUF_SIZE 1024
 
-String_View sv_copy(Areno *areno, String_View *src)
-{
-    size_t len  = src->len;
-    char *items = (char *) areno_alloc(areno, len);
-    memccpy(items, src->items, 0, len);
-
-    return (String_View) {
-        .len   = len,
-        .items = items,
-    };
-}
-
-Token parser_peek(Parser *parser)
-{
-    return parser->tokens[parser->cursor];
-}
-Token parser_prev(Parser *parser)
-{
-    if (parser->cursor <= 0) {
-        return (Token) {
-            .kind = Lex_Invalid,
-        };
-    }
-    return parser->tokens[parser->cursor - 1];
-}
-Token parser_lookahead(Parser *parser, size_t nb)
-{
-    for (size_t i = 0; i <= nb; i++) {
-        if ((parser->tokens[parser->cursor + i]).kind == Lex_EOF) {
-            return (Token) {
-                .kind = Lex_EOF
-            };
-        }
-    }
-    return parser->tokens[parser->cursor + nb];
-}
-
-void parser_advance(Parser *parser)
-{
-    if (parser_peek(parser).kind == Lex_EOF) return;
-    parser->cursor += 1;
-}
-
-#define parser_match(...) __parser_match_impl(__VA_ARGS__, Lex_Invalid)
-Token __parser_match_impl(Parser *parser, ...)
-{
-    va_list args;
-    va_start(args, parser);
-    Lexeme arg;
-    while ((arg = va_arg(args, Lexeme)) != Lex_Invalid) {
-        Token current = parser->tokens[parser->cursor];
-        if (parser_peek(parser).kind == arg) {
-            parser_advance(parser);
-            return current;
-        }
-    }
-    return (Token) {
-        .kind = Lex_Invalid 
-    };
-}
-
-#define parser_expect(parser, lexeme) do {if (!__parser_expect_impl(parser, lexeme)) return NULL; } while (0);
-bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
-{
-    if (parser_match(parser, lexeme).kind == Lex_Invalid) {
-        Token current          = parser_peek(parser);
-        Token prev             = parser_prev(parser);
-        const char* lexeme_str = lexer_print(lexeme);
-        const char* prev_str   = token_print(&prev, parser->areno);
-        const char *curr_str   = token_print(&current, parser->areno);
-
-        char *err_msg = areno_printf(parser->areno,
-                "Expected '%s' after '%s', got '%s'\n",
-                lexeme_str,
-                prev_str,
-                curr_str);
-
-        parser_prepare_error(parser, err_msg, Parse_Err_UnexpectedToken);
-        return false;
-    }
-    return true;
-}
-
-// Take current token, and wrap error
-void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
-{
-    Token current = parser_peek(parser);
-    parser->err = (Parse_Error) {
-        .guilty    = current,
-        .code      = msg == NULL ? Parse_Err_AllocError : kind,
-        .formatted = msg == NULL ? "Error alloc memory" : msg
-    };
-}
-
-Stmt *parser_create_stmts(Parser *parser, size_t nb)
-{
-    Stmt *stmts = (Stmt*) areno_alloc(parser->areno, sizeof(Stmt) * nb);
-    memset(stmts, 0, sizeof(Stmt) * nb);
-    return stmts;
-}
-Stmt *parser_create_stmt(Parser *parser, Stmt_Kind kind)
-{
-    Stmt *stmt = (Stmt*) parser_create_stmts(parser, 1);
-    stmt->kind = kind;
-    return stmt;
-}
-Expr *parser_create_exprs(Parser *parser, size_t nb)
-{
-    Expr *exprs = (Expr*) areno_alloc(parser->areno, sizeof(Expr) * nb);
-    memset(exprs, 0, sizeof(Stmt) * nb);
-    return exprs;
-}
-Expr *parser_create_expr(Parser *parser, Expr_Kind kind)
-{
-    Expr *expr = (Expr*) areno_alloc(parser->areno, sizeof(Expr));
-    memset(expr, 0, sizeof(Expr));
-    expr->kind = kind;
-    return expr;
-}
-
 /////////////////////// PARSING ////////////////////////////////
 
 Stmt *parser_parse(Parser *parser)
@@ -241,7 +121,7 @@ Stmt *parse_func_def(Parser *parser)
     
     Stmt *stmt = parser_create_stmt(parser, StmtKind_Funcdef);
     stmt->as.funcdef = (Stmt_Funcdef) {
-        .name  = funcname,
+        .name_tok  = funcname,
         .args  = args,
         .block = body,
         .return_type_stmt = type,
@@ -328,7 +208,7 @@ Stmt_Type *parse_type_expr(Parser *parser)
     bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
     if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
         type->success_set      = true;
-        type->success.name     = current;
+        type->success.name_tok     = current;
         type->success.nullable = nullable;
     } else if (nullable) {
         parser_expect(parser, Lex_Ident); // crash if nullable but no ident
@@ -338,7 +218,7 @@ Stmt_Type *parse_type_expr(Parser *parser)
         bool nullable = parser_match(parser, Lex_Question).kind != Lex_Invalid;
         if ((current = parser_match(parser, Lex_Ident)).kind != Lex_Invalid) {
             type->error_set      = true;
-            type->error.name    = current;
+            type->error.name_tok = current;
             type->error.nullable = nullable;
         } else if (nullable) {
             parser_expect(parser, Lex_Ident);
@@ -415,7 +295,7 @@ Stmt *parse_stmt_assign(Parser *parser)
 
     Stmt *stmt = parser_create_stmt(parser, StmtKind_Assignement);
     stmt->as.assignement = (Stmt_Assignement) {
-        .name       = ident,
+        .name_tok       = ident,
         .kind       = assign_kind,
         .value_stmt = value,
         .type_stmt  = type
@@ -581,21 +461,21 @@ Expr *parse_terminal(Parser *parser)
     if (current.kind == Lex_Ident) { // x
         parser_expect(parser, Lex_Ident);
         Expr *expr = parser_create_expr(parser, Expr_Ident);
-        expr->as.ident = sv_copy(parser->areno, &current.as.ident);
+        expr->as.ident_tok = current;
         return expr;
 
     } else if (current.kind == Lex_String_Lit) { // "snoup"
         parser_expect(parser, Lex_String_Lit);
         // "snoup"
         Expr *expr = parser_create_expr(parser, Expr_String);
-        expr->as.str = sv_copy(parser->areno, &current.as.string);
+        expr->as.str_tok = current;
         return expr;
 
     } else if (current.kind == Lex_Number) { // 23
         parser_expect(parser, Lex_Number);
         // 23
         Expr *expr = parser_create_expr(parser, Expr_Number);
-        expr->as.number = current.as.number;
+        expr->as.number_tok = current;
         return expr;
 
     }
@@ -633,8 +513,8 @@ void dump_stmt_type(Stmt_Type *type, int level)
             printf("?");
         }
         printf("%.*s",
-                (int) type->success.name.as.ident.len, // TODO: fix unsafe
-                type->success.name.as.ident.items);
+                (int) type->success.name_tok.as.ident.len, // TODO: fix unsafe
+                type->success.name_tok.as.ident.items);
     }
     if (type->error_set) {
         printf("!");
@@ -642,8 +522,8 @@ void dump_stmt_type(Stmt_Type *type, int level)
             printf("?");
         }
         printf("%.*s",
-                (int) type->error.name.as.ident.len, // TODO: fix unsafe
-                type->error.name.as.ident.items);
+                (int) type->error.name_tok.as.ident.len, // TODO: fix unsafe
+                type->error.name_tok.as.ident.items);
     }
     printf("\n");
 }
@@ -674,8 +554,8 @@ void dump_stmt(Stmt *stmt, int level)
             // name
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Name: %.*s\n",
-                    (int)stmt->as.funcdef.name.as.ident.len, // TODO: fix unsafe
-                    stmt->as.funcdef.name.as.ident.items);
+                    (int)stmt->as.funcdef.name_tok.as.ident.len, // TODO: fix unsafe
+                    stmt->as.funcdef.name_tok.as.ident.items);
             // args
             if (stmt->as.funcdef.args.count <= 0) {
                 for (int i = 0; i < level + 2; i++) printf(" ");
@@ -709,8 +589,8 @@ void dump_stmt(Stmt *stmt, int level)
 
             for (int i = 0; i < level + 1; i++) printf(" ");
             printf("Name: %.*s\n",
-                    (int)stmt->as.assignement.name.as.ident.len,// TODO: fix unsafe
-                    stmt->as.assignement.name.as.ident.items);
+                    (int)stmt->as.assignement.name_tok.as.ident.len,// TODO: fix unsafe
+                    stmt->as.assignement.name_tok.as.ident.items);
 
             if (stmt->as.assignement.type_stmt != NULL
                     && (stmt->as.assignement.type_stmt->success_set
@@ -774,7 +654,7 @@ void dump_expression (Expr *expr, int level)
         } break;
         case Expr_Number:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("Number: %f\n", expr->as.number);
+            printf("Number: %f\n", expr->as.number_tok.as.number);
             break;
         case Expr_Binary:
             for (int i = 0; i < level; i++) printf(" ");
@@ -790,11 +670,15 @@ void dump_expression (Expr *expr, int level)
             break;
         case Expr_Ident:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("Ident: %.*s\n", (int) expr->as.ident.len, expr->as.ident.items);
+            printf("Ident: %.*s\n",
+                    (int)expr->as.ident_tok.as.ident.len, // TODO: fix unsafe
+                    expr->as.ident_tok.as.ident.items);
             break;
         case Expr_String:
             for (int i = 0; i < level; i++) printf(" ");
-            printf("String: %.*s\n", (int) expr->as.str.len, expr->as.str.items);
+            printf("String: %.*s\n",
+                    (int)expr->as.ident_tok.as.ident.len, // TODO: fix unsafe
+                    expr->as.ident_tok.as.ident.items);
             break;
         case Expr_Unary:
             for (int i = 0; i < level; i++) printf(" ");
@@ -811,3 +695,112 @@ void dump_expression (Expr *expr, int level)
             break;
     }
 }
+
+/////////////////////// UTILS ////////////////////////////////
+
+static inline Token parser_peek(Parser *parser)
+{
+    return parser->tokens[parser->cursor];
+}
+static inline Token parser_prev(Parser *parser)
+{
+    if (parser->cursor <= 0) {
+        return (Token) {
+            .kind = Lex_Invalid,
+        };
+    }
+    return parser->tokens[parser->cursor - 1];
+}
+static inline Token parser_lookahead(Parser *parser, size_t nb)
+{
+    for (size_t i = 0; i <= nb; i++) {
+        if ((parser->tokens[parser->cursor + i]).kind == Lex_EOF) {
+            return (Token) {
+                .kind = Lex_EOF
+            };
+        }
+    }
+    return parser->tokens[parser->cursor + nb];
+}
+
+static inline void parser_advance(Parser *parser)
+{
+    if (parser_peek(parser).kind == Lex_EOF) return;
+    parser->cursor += 1;
+}
+
+static inline Token __parser_match_impl(Parser *parser, ...)
+{
+    va_list args;
+    va_start(args, parser);
+    Lexeme arg;
+    while ((arg = va_arg(args, Lexeme)) != Lex_Invalid) {
+        Token current = parser->tokens[parser->cursor];
+        if (parser_peek(parser).kind == arg) {
+            parser_advance(parser);
+            return current;
+        }
+    }
+    return (Token) {
+        .kind = Lex_Invalid 
+    };
+}
+
+static inline bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
+{
+    if (parser_match(parser, lexeme).kind == Lex_Invalid) {
+        Token current          = parser_peek(parser);
+        Token prev             = parser_prev(parser);
+        const char* lexeme_str = lexer_print(lexeme);
+        const char* prev_str   = token_print(&prev, parser->areno);
+        const char *curr_str   = token_print(&current, parser->areno);
+
+        char *err_msg = areno_printf(parser->areno,
+                "Expected '%s' after '%s', got '%s'\n",
+                lexeme_str,
+                prev_str,
+                curr_str);
+
+        parser_prepare_error(parser, err_msg, Parse_Err_UnexpectedToken);
+        return false;
+    }
+    return true;
+}
+
+// Take current token, and wrap error
+static inline void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
+{
+    Token current = parser_peek(parser);
+    parser->err = (Parse_Error) {
+        .guilty    = current,
+        .code      = msg == NULL ? Parse_Err_AllocError : kind,
+        .formatted = msg == NULL ? "Error alloc memory" : msg
+    };
+}
+
+static inline Stmt *parser_create_stmts(Parser *parser, size_t nb)
+{
+    Stmt *stmts = (Stmt*) areno_alloc(parser->areno, sizeof(Stmt) * nb);
+    memset(stmts, 0, sizeof(Stmt) * nb);
+    return stmts;
+}
+static inline Stmt *parser_create_stmt(Parser *parser, Stmt_Kind kind)
+{
+    Stmt *stmt = (Stmt*) parser_create_stmts(parser, 1);
+    stmt->kind = kind;
+    return stmt;
+}
+static inline Expr *parser_create_exprs(Parser *parser, size_t nb)
+{
+    Expr *exprs = (Expr*) areno_alloc(parser->areno, sizeof(Expr) * nb);
+    memset(exprs, 0, sizeof(Stmt) * nb);
+    return exprs;
+}
+static inline Expr *parser_create_expr(Parser *parser, Expr_Kind kind)
+{
+    Expr *expr = (Expr*) areno_alloc(parser->areno, sizeof(Expr));
+    memset(expr, 0, sizeof(Expr));
+    expr->kind = kind;
+    return expr;
+}
+

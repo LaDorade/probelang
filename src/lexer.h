@@ -110,7 +110,7 @@ typedef struct {
         String_View ident;
     } as;
 
-    size_t lex_size;
+    size_t size; // nb of char of the Token
     size_t row;
     size_t col;
     Lexeme kind;
@@ -123,11 +123,11 @@ Token  lex_ident (Lexer* lexer);
 
 
 ////////////////// UTILITIES //////////////////////
-char  lexer_peek   (const Lexer *lex);
-void  lexer_advance(Lexer *lex);
-char  lexer_prev   (const Lexer *lex);
-bool  lexer_match  (Lexer *lex, char c);
-Token token_create (const Lexer *lexer, Lexeme lexeme);
+static inline char  lexer_peek   (const Lexer *lex);
+static inline void  lexer_advance(Lexer *lex);
+static inline char  lexer_prev   (const Lexer *lex);
+static inline bool  lexer_match  (Lexer *lex, char c);
+static inline Token token_create (const Lexer *lexer, Lexeme lexeme);
 
 //////////////////// PRINT ////////////////////////
 const char* lexer_print(Lexeme lexeme);

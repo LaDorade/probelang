@@ -73,9 +73,9 @@ int main(void)
 
     Stmt *prog = parser_parse(&parser);
     if (prog == NULL) {
-        size_t start = parser.err.guilty.col - parser.err.guilty.lex_size;
+        size_t start = parser.err.guilty.col - parser.err.guilty.size;
         size_t row = parser.err.guilty.row;
-        size_t lex_size = parser.err.guilty.lex_size; 
+        size_t lex_size = parser.err.guilty.size; 
         printf("\e[1m" "%s:%zu:%zu: " "\033[31m" "error:" "\033[m" " %s" "\e[m",
                 path, row, start,
                 parser.err.formatted

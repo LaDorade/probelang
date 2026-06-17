@@ -55,12 +55,12 @@ typedef struct {
 
 struct Stmt_Type {
     struct {
-        Token name;
+        Token name_tok;
         bool  nullable;
     } success;
 
     struct {
-        Token name;
+        Token name_tok;
         bool  nullable;
     } error;
 
@@ -69,7 +69,7 @@ struct Stmt_Type {
 };
 
 typedef struct {
-    Token name; // can be of kind Tok_Invalid (anonymous function)
+    Token name_tok; // can be of kind Tok_Invalid (anonymous function)
     Args  args;
     Stmt_Type  *return_type_stmt;
     Stmt_Block *block;
@@ -84,7 +84,7 @@ typedef enum {
 } Assign_Kind;
 
 typedef struct {
-    Token name;
+    Token      name_tok;
     Stmt      *value_stmt; // expr or block
     Stmt_Type *type_stmt;
     Assign_Kind kind;
@@ -166,12 +166,12 @@ typedef struct {
 
 struct Expr {
     union {
-        String_View str;
-        String_View ident;
-        Binary_Op   binary_op;
-        Unary_Op    unary_op;
-        Funcall     funcall;
-        double      number;
+        Binary_Op binary_op;
+        Unary_Op  unary_op;
+        Funcall   funcall;
+        Token     str_tok;
+        Token     ident_tok;
+        Token     number_tok;
     } as;
     Expr_Kind kind;
 };
@@ -179,11 +179,6 @@ struct Expr {
 /////////////////////// PARSING ////////////////////////////////
 
 Stmt *parser_parse (Parser *parser);
-
-Stmt *parser_create_stmts(Parser *parser, size_t nb);
-Stmt *parser_create_stmt (Parser *parser, Stmt_Kind kind);
-Expr *parser_create_exprs(Parser *parser, size_t nb);
-Expr *parser_create_expr (Parser *parser, Expr_Kind kind);
 
 // Statement
 Stmt *parse_statement  (Parser *parser);
@@ -215,15 +210,24 @@ Expr *parse_terminal     (Parser *parser);
 
 /////////////////////// UTILS ////////////////////////////////
 
-Token parser_peek   (Parser *parser);
-Token parser_prev   (Parser *parser);
-void  parser_advance(Parser *parser);
-// parser_expect()
-bool  __parser_expect_impl (Parser *parser, Lexeme lexeme);
-// parser_match()
-Token __parser_match_impl(Parser *parser, ...);
+static inline Stmt *parser_create_stmts(Parser *parser, size_t nb);
+static inline Stmt *parser_create_stmt (Parser *parser, Stmt_Kind kind);
+static inline Expr *parser_create_exprs(Parser *parser, size_t nb);
+static inline Expr *parser_create_expr (Parser *parser, Expr_Kind kind);
 
-void  parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind);
+static inline Token parser_peek   (Parser *parser);
+static inline Token parser_prev   (Parser *parser);
+static inline void  parser_advance(Parser *parser);
+static inline Token parser_lookahead(Parser *parser, size_t nb);
+
+static inline bool  __parser_expect_impl (Parser *parser, Lexeme lexeme);
+#define parser_expect(parser, lexeme) do {if (!__parser_expect_impl(parser, lexeme)) return NULL; } while (0);
+
+static inline Token __parser_match_impl(Parser *parser, ...);
+#define parser_match(...) __parser_match_impl(__VA_ARGS__, Lex_Invalid)
+
+
+static inline void  parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind);
 
 /////////////////////// DUMPING ////////////////////////////////
 

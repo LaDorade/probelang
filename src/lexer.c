@@ -13,55 +13,6 @@
 
 #define BUF_SIZE 1024
 
-char lexer_peek(const Lexer *lex)
-{
-    if (lex->eof) return 0;
-    return lex->sv.items[lex->cursor];
-}
-
-void lexer_advance(Lexer *lex)
-{
-    if (lexer_peek(lex) == '\n') {
-        lex->row += 1;
-        lex->col  = 0;
-    } else {
-        lex->col += 1;
-    }
-
-    if (lex->cursor >= lex->sv.len) {
-        lex->eof = true;
-        return;
-    }
-    lex->cursor += 1;
-}
-
-// return last char, first one of the string view if cursor is 0
-char lexer_prev(const Lexer *lex)
-{
-    if (lex->cursor <= 0) return lex->sv.items[0];
-    return lex->sv.items[lex->cursor - 1];
-}
-
-bool lexer_match(Lexer *lex, char c)
-{
-    if (lexer_peek(lex) == c)
-    {
-        lexer_advance(lex);
-        return true;
-    }
-    return false;
-}
-
-inline Token token_create(const Lexer* lex, Lexeme lexeme)
-{
-    return (Token) {
-        .kind = lexeme,
-        .col  = lex->col,
-        .row  = lex->row,
-        .lex_size = lex->cursor - lex->start,
-    };
-}
-
 // Start the lexer, reset cursor, col & row
 Token* lexer_lex(Lexer *lexer)
 {
@@ -97,6 +48,16 @@ Token* lexer_lex(Lexer *lexer)
                 continue;
 
             // double char Lexemes with single char alt
+            case '/': {
+                if (lexer_match(lexer, '/')) { // comment
+                    while (!lexer->eof && !lexer_match(lexer, '\n')) {
+                        lexer_advance(lexer);
+                    }
+                } else { // divide
+                    kind = Lex_Divide;
+                    tokens[current_tok++] = token_create(lexer, kind);
+                }
+            } continue;
             case ':':
                 kind = lexer_match(lexer, ':') ? Lex_Colon_Colon : Lex_Colon;
                 tokens[current_tok++] = token_create(lexer, kind);
@@ -121,16 +82,6 @@ Token* lexer_lex(Lexer *lexer)
                 kind = lexer_match(lexer, '>') ? Lex_Arrow_Right : Lex_Minus;
                 tokens[current_tok++] = token_create(lexer, kind);
                 continue;
-            case '/': {
-                if (lexer_match(lexer, '/')) { // comment
-                    while (!lexer->eof && !lexer_match(lexer, '\n')) {
-                        lexer_advance(lexer);
-                    }
-                } else { // divide
-                    kind = Lex_Divide;
-                    tokens[current_tok++] = token_create(lexer, kind);
-                }
-            } continue;
 
             // single char Lexeme
             case ',':
@@ -331,6 +282,60 @@ Token lex_ident(Lexer *lexer)
 
     return tok;
 }
+
+
+////////////////// UTILITIES //////////////////////
+
+static inline char lexer_peek(const Lexer *lex)
+{
+    if (lex->eof) return 0;
+    return lex->sv.items[lex->cursor];
+}
+
+static inline void lexer_advance(Lexer *lex)
+{
+    if (lexer_peek(lex) == '\n') {
+        lex->row += 1;
+        lex->col  = 0;
+    } else {
+        lex->col += 1;
+    }
+
+    if (lex->cursor >= lex->sv.len) {
+        lex->eof = true;
+        return;
+    }
+    lex->cursor += 1;
+}
+
+// return last char, first one of the string view if cursor is 0
+static inline char lexer_prev(const Lexer *lex)
+{
+    if (lex->cursor <= 0) return lex->sv.items[0];
+    return lex->sv.items[lex->cursor - 1];
+}
+
+static inline bool lexer_match(Lexer *lex, char c)
+{
+    if (lexer_peek(lex) == c)
+    {
+        lexer_advance(lex);
+        return true;
+    }
+    return false;
+}
+
+static inline Token token_create(const Lexer* lex, Lexeme lexeme)
+{
+    return (Token) {
+        .kind = lexeme,
+        .col  = lex->col,
+        .row  = lex->row,
+        .size = lex->cursor - lex->start,
+    };
+}
+
+//////////////////// PRINT ////////////////////////
 
 const char* lexer_print(Lexeme lexeme)
 {

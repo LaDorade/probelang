@@ -61,9 +61,9 @@ void TEST_ASSERT(int expected, const char* msg) {
         fprintf(stderr, "Error while Testing snippet:\n");
         fprintf(stderr, "%.*s\n", (int)lexer.sv.len, lexer.sv.items);
 
-        size_t start = parser.err.guilty.col - parser.err.guilty.lex_size;
+        size_t start = parser.err.guilty.col - parser.err.guilty.size;
         size_t row = parser.err.guilty.row;
-        size_t lex_size = parser.err.guilty.lex_size; 
+        size_t lex_size = parser.err.guilty.size; 
         printf("\e[1m" "%zu:%zu: " "\033[31m" "error:" "\033[m" " %s" "\e[m",
                 row, start,
                 parser.err.formatted
@@ -116,11 +116,11 @@ int main()
 
         TEST_ASSERT(assignement.kind == StmtKind_Assignement , "Statement should be an assignement");
         TEST_ASSERT(assignement.as.assignement.kind == AssignKind_Let , "Assignement kind should be let");
-        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name.as.ident) , "Assignement ident name should be a");
+        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name_tok.as.ident) , "Assignement ident name should be a");
         Stmt *value = assignement.as.assignement.value_stmt;
         TEST_ASSERT(value->kind == StmtKind_Expression , "Assignement value should be an expression");
         TEST_ASSERT(value->as.expr_stmt->kind == Expr_Number , "Assignement value kind should be a number");
-        TEST_ASSERT(value->as.expr_stmt->as.number == 42 , "Assignement value value should be 42");
+        TEST_ASSERT(value->as.expr_stmt->as.number_tok.as.number == 42 , "Assignement value value should be 42");
         printf("[TEST] let assignement\n");
     }
 
@@ -133,11 +133,11 @@ int main()
 
         TEST_ASSERT(assignement.kind == StmtKind_Assignement , "Statement should be an assignement");
         TEST_ASSERT(assignement.as.assignement.kind == AssignKind_Const , "Assignement kind should be const");
-        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name.as.ident) , "Assignement ident name should be a");
+        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name_tok.as.ident) , "Assignement ident name should be a");
         Stmt *value = assignement.as.assignement.value_stmt;
         TEST_ASSERT(value->kind == StmtKind_Expression , "Assignement value should be an expression");
         TEST_ASSERT(value->as.expr_stmt->kind == Expr_Number , "Assignement value kind should be a number");
-        TEST_ASSERT(value->as.expr_stmt->as.number == 42 , "Assignement value value should be 42");
+        TEST_ASSERT(value->as.expr_stmt->as.number_tok.as.number== 42 , "Assignement value value should be 42");
         printf("[TEST] const assignement\n");
     }
 
@@ -150,11 +150,11 @@ int main()
 
         TEST_ASSERT(assignement.kind == StmtKind_Assignement , "Statement should be an assignement");
         TEST_ASSERT(assignement.as.assignement.kind == AssignKind_Reassign , "Assignement kind should be a reassignement");
-        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name.as.ident) , "Assignement ident name should be a");
+        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name_tok.as.ident) , "Assignement ident name should be a");
         Stmt *value = assignement.as.assignement.value_stmt;
         TEST_ASSERT(value->kind == StmtKind_Expression , "Assignement value should be an expression");
         TEST_ASSERT(value->as.expr_stmt->kind == Expr_Number , "Assignement value kind should be a number");
-        TEST_ASSERT(value->as.expr_stmt->as.number == 42 , "Assignement value value should be 42");
+        TEST_ASSERT(value->as.expr_stmt->as.number_tok.as.number == 42 , "Assignement value value should be 42");
         printf("[TEST] reassignement\n");
     }
 
@@ -173,7 +173,7 @@ int main()
         Stmt *statements  = prog->as.block.items[0].as.funcdef.block->items;
         Stmt  assignement = statements[0];
         TEST_ASSERT(assignement.kind == StmtKind_Assignement , "Statement should be an assignement");
-        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name.as.ident) , "Assignement ident name should be a");
+        TEST_ASSERT(sv_eq_string("a", assignement.as.assignement.name_tok.as.ident) , "Assignement ident name should be a");
         Stmt *value = assignement.as.assignement.value_stmt;
         TEST_ASSERT(value->kind == StmtKind_Block , "Assignement value should be a block");
         printf("[TEST] Block assignement\n");
@@ -189,8 +189,8 @@ int main()
         TEST_ASSERT(expression->kind == Expr_Binary , "Expected a binary expression");
         TEST_ASSERT(expression->as.binary_op.lhs->kind == Expr_Number , "Expected a number");
         TEST_ASSERT(expression->as.binary_op.rhs->kind == Expr_Number , "Expected a number");
-        TEST_ASSERT(expression->as.binary_op.lhs->as.number == 1 , "Expected number to be 1");
-        TEST_ASSERT(expression->as.binary_op.rhs->as.number == 2 , "Expected number to be 2");
+        TEST_ASSERT(expression->as.binary_op.lhs->as.number_tok.as.number == 1 , "Expected number to be 1");
+        TEST_ASSERT(expression->as.binary_op.rhs->as.number_tok.as.number == 2 , "Expected number to be 2");
         printf("[TEST] Basic Expression\n");
     }
 
@@ -202,7 +202,7 @@ int main()
         Stmt  expression = statements[0];
         TEST_ASSERT(expression.kind == StmtKind_Expression , "Expected an expression");
         TEST_ASSERT(expression.as.expr_stmt->kind == Expr_String , "Expected a string expression");
-        TEST_ASSERT(sv_eq_string("bijour", expression.as.expr_stmt->as.str) , "Expected string to be \"bijour\"");
+        TEST_ASSERT(sv_eq_string("bijour", expression.as.expr_stmt->as.str_tok.as.string) , "Expected string to be \"bijour\"");
         printf("[TEST] String expression (with ;)\n");
     }
 
@@ -214,14 +214,14 @@ int main()
         Stmt  string = statements[0];
         TEST_ASSERT(string.kind == StmtKind_Expression , "Expected an expression");
         TEST_ASSERT(string.as.expr_stmt->kind == Expr_String , "Expected a string expression");
-        TEST_ASSERT(sv_eq_string("bijour", string.as.expr_stmt->as.str) , "Expected string to be \"bijour\"");
+        TEST_ASSERT(sv_eq_string("bijour", string.as.expr_stmt->as.str_tok.as.string) , "Expected string to be \"bijour\"");
         Stmt  binop = statements[1];
         TEST_ASSERT(binop.kind == StmtKind_Expression , "Expected an expression");
         TEST_ASSERT(binop.as.expr_stmt->kind == Expr_Binary , "Expected a binary expression");
         TEST_ASSERT(binop.as.expr_stmt->as.binary_op.lhs->kind == Expr_Number , "Expected a number");
         TEST_ASSERT(binop.as.expr_stmt->as.binary_op.rhs->kind == Expr_Number , "Expected a number");
-        TEST_ASSERT(binop.as.expr_stmt->as.binary_op.lhs->as.number == 1 , "Expected number to be 1");
-        TEST_ASSERT(binop.as.expr_stmt->as.binary_op.rhs->as.number == 2 , "Expected number to be 2");
+        TEST_ASSERT(binop.as.expr_stmt->as.binary_op.lhs->as.number_tok.as.number == 1 , "Expected number to be 1");
+        TEST_ASSERT(binop.as.expr_stmt->as.binary_op.rhs->as.number_tok.as.number == 2 , "Expected number to be 2");
         printf("[TEST] Two expression without ';' between\n");
     }
 
@@ -233,7 +233,7 @@ int main()
         Stmt  expression = statements[0];
         TEST_ASSERT(expression.kind == StmtKind_Expression , "Expected an expression");
         TEST_ASSERT(expression.as.expr_stmt->kind == Expr_Funcall , "Expected a funcall expression");
-        TEST_ASSERT(sv_eq_string("fn", expression.as.expr_stmt->as.funcall.callee->as.ident) , "Expected a function to be \"fn\"");
+        TEST_ASSERT(sv_eq_string("fn", expression.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected a function to be \"fn\"");
         TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.count == 0 , "Should have no argument passed");
         printf("[TEST] Funcall expression\n");
 
@@ -244,13 +244,13 @@ int main()
         expression = statements[0];
         TEST_ASSERT(expression.kind == StmtKind_Expression , "Expected an expression");
         TEST_ASSERT(expression.as.expr_stmt->kind == Expr_Funcall , "Expected a funcall expression");
-        TEST_ASSERT(sv_eq_string("fn", expression.as.expr_stmt->as.funcall.callee->as.ident) , "Expected a function to be \"fn\"");
+        TEST_ASSERT(sv_eq_string("fn", expression.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected a function to be \"fn\"");
         TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.count == 2 , "Should have 2 arguments passed");
         TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.items[0].kind == Expr_Ident , "Arg 1 should be an indentifier");
         TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.items[1].kind == Expr_Number , "Arg 2 should be a number");
-        assert(sv_eq_string("x", expression.as.expr_stmt->as.funcall.args.items[0].as.ident)
+        assert(sv_eq_string("x", expression.as.expr_stmt->as.funcall.args.items[0].as.ident_tok.as.ident)
                 && "Arg 1 ident name should be \"x\"");
-        TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.items[1].as.number == 32 , "Arg 2 number should equal 32");
+        TEST_ASSERT(expression.as.expr_stmt->as.funcall.args.items[1].as.number_tok.as.number == 32 , "Arg 2 number should equal 32");
         printf("[TEST] Funcall expression with args\n");
     }
 
@@ -268,8 +268,8 @@ int main()
         TEST_ASSERT(binop->kind == Expr_Binary , "Expected a binary expression");
         TEST_ASSERT(binop->as.binary_op.lhs->kind == Expr_Number , "Expected a number");
         TEST_ASSERT(binop->as.binary_op.rhs->kind == Expr_Number , "Expected a number");
-        TEST_ASSERT(binop->as.binary_op.lhs->as.number == 12 , "Expected number to be 12");
-        TEST_ASSERT(binop->as.binary_op.rhs->as.number == 32 , "Expected number to be 32");
+        TEST_ASSERT(binop->as.binary_op.lhs->as.number_tok.as.number == 12 , "Expected number to be 12");
+        TEST_ASSERT(binop->as.binary_op.rhs->as.number_tok.as.number == 32 , "Expected number to be 32");
 
         Stmt *block = if_statement.as.if_stmt.ok_stmt;
         TEST_ASSERT(block->kind == StmtKind_Block , "Expected a block");
@@ -277,7 +277,7 @@ int main()
         Stmt stmt = if_statement.as.if_stmt.ok_stmt->as.block.items[0];
         TEST_ASSERT(stmt.kind == StmtKind_Expression , "Expected statement to be an expression");
         TEST_ASSERT(stmt.as.expr_stmt->kind == Expr_Funcall , "Expected expr to be a funcall");
-        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if\n");
     }
 
@@ -295,8 +295,8 @@ int main()
         TEST_ASSERT(binop->kind == Expr_Binary , "Expected a binary expression");
         TEST_ASSERT(binop->as.binary_op.lhs->kind == Expr_Number , "Expected a number");
         TEST_ASSERT(binop->as.binary_op.rhs->kind == Expr_Number , "Expected a number");
-        TEST_ASSERT(binop->as.binary_op.lhs->as.number == 41 , "Expected number to be 41");
-        TEST_ASSERT(binop->as.binary_op.rhs->as.number == 32 , "Expected number to be 32");
+        TEST_ASSERT(binop->as.binary_op.lhs->as.number_tok.as.number == 41 , "Expected number to be 41");
+        TEST_ASSERT(binop->as.binary_op.rhs->as.number_tok.as.number == 32 , "Expected number to be 32");
 
         Stmt *block = if_statement.as.if_stmt.ok_stmt;
         TEST_ASSERT(block->kind == StmtKind_Block , "Expected a block");
@@ -304,7 +304,7 @@ int main()
         Stmt stmt = block->as.block.items[0];
         TEST_ASSERT(stmt.kind == StmtKind_Expression , "Expected statement to be an expression");
         TEST_ASSERT(stmt.as.expr_stmt->kind == Expr_Funcall , "Expected expr to be a funcall");
-        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if with '()'\n");
     }
 
@@ -332,9 +332,9 @@ int main()
         Stmt stmt = else_stmt->as.block.items[0];
         TEST_ASSERT(stmt.kind == StmtKind_Expression , "Expected statement to be an expression");
         TEST_ASSERT(stmt.as.expr_stmt->kind == Expr_Funcall , "Expected expr to be a funcall");
-        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
-        TEST_ASSERT(sv_eq_string("no!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("no!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str_tok.as.string) , "Expected funcall name to be 'println'");
         printf("[TEST] Test simple if-else\n");
     }
 
@@ -355,9 +355,9 @@ int main()
         Stmt stmt = else_stmt->as.if_stmt.ok_stmt->as.block.items[0];
         TEST_ASSERT(stmt.kind == StmtKind_Expression , "Expected statement to be an expression");
         TEST_ASSERT(stmt.as.expr_stmt->kind == Expr_Funcall , "Expected expr to be a funcall");
-        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
-        TEST_ASSERT(sv_eq_string("bij!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("bij!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str_tok.as.string) , "Expected funcall name to be 'println'");
         printf("[TEST] Test if-else_if\n");
     }
 
@@ -378,15 +378,15 @@ int main()
         Stmt stmt = elseif_stmt->as.if_stmt.ok_stmt->as.block.items[0];
         TEST_ASSERT(stmt.kind == StmtKind_Expression , "Expected statement to be an expression");
         TEST_ASSERT(stmt.as.expr_stmt->kind == Expr_Funcall , "Expected expr to be a funcall");
-        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("println", stmt.as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected funcall name to be 'println'");
         // wild test (not checking kind nor if allocated)
-        TEST_ASSERT(sv_eq_string("bij!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str) , "Expected funcall name to be 'println'");
+        TEST_ASSERT(sv_eq_string("bij!", stmt.as.expr_stmt->as.funcall.args.items[0].as.str_tok.as.string) , "Expected funcall name to be 'println'");
 
         Stmt *else_stmt = if_statement.as.if_stmt.ko_stmt->as.if_stmt.ko_stmt;
         TEST_ASSERT(else_stmt->kind == StmtKind_Block , "Expected a block");
         TEST_ASSERT(else_stmt->as.block.items[0].kind == StmtKind_Expression , "Expected a expr");
         TEST_ASSERT(else_stmt->as.block.items[0].as.expr_stmt->kind == Expr_Funcall , "Expected a funcall");
-        TEST_ASSERT(sv_eq_string("println", else_stmt->as.block.items[0].as.expr_stmt->as.funcall.callee->as.ident) , "Expected fun name to be println");
+        TEST_ASSERT(sv_eq_string("println", else_stmt->as.block.items[0].as.expr_stmt->as.funcall.callee->as.ident_tok.as.ident) , "Expected fun name to be println");
         printf("[TEST] Test if-else_if-else\n");
     }
 
