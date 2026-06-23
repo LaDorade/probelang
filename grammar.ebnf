@@ -2,34 +2,35 @@ program      ::= { declaration } ;
 
 # Declaration
 declaration ::=
-    | stmt-assign
+    | decl-assign
+    | func-decl
     | statement
-    | func-def
 ;
+decl-assign ::= ( 'let' | 'const' ) assign ;
+assign ::= term-ident [ ':' type-expr ] '=' expression | block ;
+
+# Function
+func-decl  ::= 'fun' term-ident ':' '(' { func-arg } ')' '->' type-expr '=' block ;
+func-arg  ::= term-ident ':' type-expr ;
 
 # Statements
 statement ::=
     | stmt-block
-    | stmt-reassign
+    | stmt-reassign # TODO move assign to expr
     | stmt-if
     | stmt-while
     | expression
 ;
 stmt-block    ::= '{' { declaration } '}';
-stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
-stmt-reassign ::= ident '=' expression | block ;
+stmt-reassign ::= assign
 stmt-if       ::= 'if'    ((['('] expression [')']) | expression) statement ['else' statement] ;
 stmt-while    ::= 'while' ((['('] expression [')']) | expression) statement ;
 stmt-for      ::= # TODO
 
-# Function
-func-def  ::= 'fun' term-ident ':' '(' { func-arg } ')' '->' type-expr '=' block ;
-func-arg  ::= term-ident ':' type-expr ;
-func-type ::= '(' { type-expr } ')' '->' type-expr ;
-
 # Types
 type-expr     ::= term-optional [ '!' type-optional ] ;
 type-optional ::= [ '?' ] term-ident ;
+type-func     ::= '(' { type-expr } ')' '->' type-expr ;
 
 # Data
 data-struct  ::= 'struct' [ '(' term-ident ')' ] [ term-ident ] '=' '{' { struct-field } '}' ;

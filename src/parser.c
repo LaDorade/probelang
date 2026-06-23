@@ -21,63 +21,32 @@ Stmt *parser_parse(Parser *parser)
 
     Token current;
     while ((current = parser_peek(parser)).kind != Lex_EOF) {
-        Stmt *func = parse_statement(parser);
+        Stmt *func = parse_declaration(parser);
         if (func == NULL) return NULL;
         program->as.block.items[program->as.block.count++] = *func;
     }
     return program;
 }
 
-Stmt *parse_statement(Parser *parser)
+Stmt *parse_declaration(Parser *parser)
 {
     Token current = parser_peek(parser);
-    if (current.kind == Lex_Open_Curly) { // { ... } -- block
-        Stmt_Block *block = parse_block(parser); 
-        if (block == NULL) return NULL;
-        Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
-        stmt->as.block = *block;
-        // TODO: make fields in stmt, pointers
+    if (current.kind == Lex_fun) { // fun xx: (...) -> ... = { ... }
+        Stmt *stmt = parse_func_decl(parser);
+        if (stmt == NULL) return NULL;
         return stmt;
-
-    } else if (current.kind == Lex_Ident
-            && parser_lookahead(parser, 1).kind == Lex_Equal
-        ) {// x = ...; -- reassign
+    } else if (current.kind == Lex_let // const/let x = ...;
+            || current.kind == Lex_const) {
         Stmt *stmt = parse_stmt_assign(parser);
         if (stmt == NULL) return NULL;
         return stmt;
-
-    } else if (current.kind == Lex_fun) {
-        // fun xx: (...) -> ... = { ... }
-        Stmt *stmt = parse_func_def(parser);
-        if (stmt == NULL) return NULL;
-        return stmt;
-
-    } else if (current.kind == Lex_let || current.kind == Lex_const) { // const/let x = ...;
-        Stmt *stmt = parse_stmt_assign(parser);
-        if (stmt == NULL) return NULL;
-        return stmt;
-
-    } else if (current.kind == Lex_if) { // if ...
-        Stmt *stmt = parse_stmt_if(parser);
-        if (stmt == NULL) return NULL;
-        return stmt;
-
-    } else if (current.kind == Lex_while) { // while ...
-        Stmt *stmt = parse_stmt_while(parser);
-        if (stmt == NULL) return NULL;
-        return stmt;
-
     }
 
-    Expr *expr = parse_expression(parser);
-    if (expr == NULL) return NULL;
-    Stmt *expr_stmt = parser_create_stmt(parser, StmtKind_Expression);
-    expr_stmt->as.expr_stmt = expr;
-    return expr_stmt;
+    return parse_statement(parser);
 }
 
 // func-decl = 'fun' ident ':' '(' ident ':' type { ',' ident ':' type } ')' '->' type '=' '{' { statements } '}';
-Stmt *parse_func_def(Parser *parser)
+Stmt *parse_func_decl(Parser *parser)
 {
     parser_expect(parser, Lex_fun);
     Token funcname = parser_peek(parser);
@@ -129,6 +98,108 @@ Stmt *parse_func_def(Parser *parser)
     return stmt;
 }
 
+// stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
+Stmt *parse_stmt_assign(Parser *parser)
+{
+    Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
+    if (current.kind == Lex_Invalid) {
+        current = parser_peek(parser);
+        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
+                current.row,
+                current.col,
+                lexer_print(current.kind));
+        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+        return NULL;
+    }
+
+    Assign_Kind assign_kind = AssignKind_Invalid;
+    if (current.kind == Lex_let) {
+        assign_kind = AssignKind_Let;
+    } else if (current.kind == Lex_const) {
+        assign_kind = AssignKind_Const;
+    } else if (current.kind == Lex_Ident) {
+        assign_kind = AssignKind_Reassign;
+    } else {
+        printf("[UNREACHABLE] stmt-assign");
+        assert(0 && "[UNREACHABLE] stmt-assign");
+    }
+
+    Token ident = current;
+    if (current.kind != Lex_Ident) {
+        ident = parser_peek(parser);
+        parser_expect(parser, Lex_Ident);
+    }
+    Stmt_Type *type = NULL;
+    if (parser_match(parser, Lex_Colon).kind != Lex_Invalid) {
+        type = parse_type_expr(parser);
+        if (type == NULL) return NULL;
+    }
+
+    parser_expect(parser, Lex_Equal);
+
+    Stmt *value = NULL;
+    // parse as block
+    if (parser_peek(parser).kind == Lex_Open_Curly) {
+        Stmt_Block *block = parse_block(parser);
+        if (block == NULL) return NULL;
+        Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
+        stmt->as.block = *block;
+        value = stmt;
+    } else { // parse as expression
+        Expr *expr = parse_expression(parser);
+        if (expr == NULL) return NULL;
+        Stmt *expr_stmt = parser_create_stmt(parser, StmtKind_Expression);
+        expr_stmt->as.expr_stmt = expr;
+        value = expr_stmt;
+    }
+
+    Stmt *stmt = parser_create_stmt(parser, StmtKind_Assignement);
+    stmt->as.assignement = (Stmt_Assignement) {
+        .name_tok       = ident,
+        .kind       = assign_kind,
+        .value_stmt = value,
+        .type_stmt  = type
+    };
+
+    return stmt;
+}
+
+Stmt *parse_statement(Parser *parser)
+{
+    Token current = parser_peek(parser);
+    if (current.kind == Lex_Open_Curly) { // { ... } -- block
+        Stmt_Block *block = parse_block(parser); 
+        if (block == NULL) return NULL;
+        Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
+        stmt->as.block = *block;
+        // TODO: make fields in stmt, pointers
+        return stmt;
+
+    } else if (current.kind == Lex_Ident // x = ...; -- reassign
+            && parser_lookahead(parser, 1).kind == Lex_Equal
+        ) {
+        Stmt *stmt = parse_stmt_assign(parser);
+        if (stmt == NULL) return NULL;
+        return stmt;
+
+    } else if (current.kind == Lex_if) { // if ...
+        Stmt *stmt = parse_stmt_if(parser);
+        if (stmt == NULL) return NULL;
+        return stmt;
+
+    } else if (current.kind == Lex_while) { // while ...
+        Stmt *stmt = parse_stmt_while(parser);
+        if (stmt == NULL) return NULL;
+        return stmt;
+    }
+
+    Expr *expr = parse_expression(parser);
+    if (expr == NULL) return NULL;
+    Stmt *expr_stmt = parser_create_stmt(parser, StmtKind_Expression);
+    expr_stmt->as.expr_stmt = expr;
+    return expr_stmt;
+}
+
 Stmt_Block *parse_block(Parser *parser)
 {
     parser_expect(parser, Lex_Open_Curly);
@@ -144,7 +215,7 @@ Stmt_Block *parse_block(Parser *parser)
         if (current.kind == Lex_Close_Curly) {
             break;
         } else {
-            Stmt *stmt = parse_statement(parser);
+            Stmt *stmt = parse_declaration(parser);
             if (stmt == NULL) return NULL;
             block->items[block->count++] = *stmt;
         }
@@ -236,72 +307,6 @@ Stmt_Type *parse_type_expr(Parser *parser)
     }
 
     return type;
-}
-
-// stmt-assign   ::= [ 'let' | 'const' ] term-ident [ ':' type-expr ] '=' expression | block ;
-Stmt *parse_stmt_assign(Parser *parser)
-{
-    Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
-    if (current.kind == Lex_Invalid) {
-        current = parser_peek(parser);
-        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
-                current.row,
-                current.col,
-                lexer_print(current.kind));
-        parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
-        return NULL;
-    }
-
-    Assign_Kind assign_kind = AssignKind_Invalid;
-    if (current.kind == Lex_let) {
-        assign_kind = AssignKind_Let;
-    } else if (current.kind == Lex_const) {
-        assign_kind = AssignKind_Const;
-    } else if (current.kind == Lex_Ident) {
-        assign_kind = AssignKind_Reassign;
-    } else {
-        printf("[UNREACHABLE] stmt-assign");
-        assert(0 && "[UNREACHABLE] stmt-assign");
-    }
-
-    Token ident = current;
-    if (current.kind != Lex_Ident) {
-        ident = parser_peek(parser);
-        parser_expect(parser, Lex_Ident);
-    }
-    Stmt_Type *type = NULL;
-    if (parser_match(parser, Lex_Colon).kind != Lex_Invalid) {
-        type = parse_type_expr(parser);
-        if (type == NULL) return NULL;
-    }
-
-    parser_expect(parser, Lex_Equal);
-
-    Stmt *value = NULL;
-    // parse as block
-    if (parser_peek(parser).kind == Lex_Open_Curly) {
-        Stmt_Block *block = parse_block(parser);
-        if (block == NULL) return NULL;
-        Stmt *stmt = parser_create_stmt(parser, StmtKind_Block);
-        stmt->as.block = *block;
-        value = stmt;
-    } else { // parse as expression
-        Expr *expr = parse_expression(parser);
-        if (expr == NULL) return NULL;
-        Stmt *expr_stmt = parser_create_stmt(parser, StmtKind_Expression);
-        expr_stmt->as.expr_stmt = expr;
-        value = expr_stmt;
-    }
-
-    Stmt *stmt = parser_create_stmt(parser, StmtKind_Assignement);
-    stmt->as.assignement = (Stmt_Assignement) {
-        .name_tok       = ident,
-        .kind       = assign_kind,
-        .value_stmt = value,
-        .type_stmt  = type
-    };
-
-    return stmt;
 }
 
 Expr *parse_expression(Parser *parser)

@@ -180,6 +180,14 @@ struct Expr {
 
 Stmt *parser_parse (Parser *parser);
 
+// Declaration
+Stmt *parse_declaration(Parser *parser);
+Stmt *parse_decl_assign(Parser *parser);
+
+// Function
+Stmt *parse_func_decl(Parser *parser);
+Stmt *parse_func_arg(Parser *parser);
+
 // Statement
 Stmt *parse_statement  (Parser *parser);
 Stmt *parse_stmt_assign(Parser *parser);
@@ -187,14 +195,11 @@ Stmt *parse_stmt_if    (Parser *parser);
 Stmt *parse_stmt_while (Parser *parser);
 Stmt *parse_stmt_for   (Parser *parser); // TODO!
 
-// Function
-Stmt *parse_func_def(Parser *parser);
-Stmt *parse_func_arg(Parser *parser);
-
 // Block
 Stmt_Block *parse_block  (Parser *parser);
 
-Stmt_Type  *parse_type_expr    (Parser *parser);
+// Type
+Stmt_Type *parse_type_expr    (Parser *parser);
 
 // Expressions
 Expr *parse_expression   (Parser *parser);
