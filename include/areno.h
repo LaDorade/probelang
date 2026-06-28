@@ -7,12 +7,8 @@
  * 
  */
 
-#ifndef __ARENO_H_
-#define __ARENO_H_
-
-#include <stdlib.h>
-#include <stdarg.h>
-#include <stdio.h>
+#ifndef ARENO_H_
+#define ARENO_H_
 
 #ifndef  ARENO_ASSERT
 #include <assert.h>
@@ -32,30 +28,55 @@
 #define  ARENO_MEMSET memset
 #endif //ARENO_MEMSET
 
+#ifndef  ARENO_MEMCPY
+#include <string.h>
+#define  ARENO_MEMCPY memcpy
+#endif //ARENO_MEMCPY
+
 #ifndef  ARENO_CAPACITY
 #define  ARENO_CAPACITY 1024*1024 // 1MB
 #endif //ARENO_CAPACITY
 
 typedef struct Areno Areno;
-typedef struct Areno {
+struct Areno {
 	void*  start;
 	Areno* next;
 	size_t count;
-} Areno;
+};
 
-void *areno_alloc (Areno* areno, size_t size_in_byte);
-void *areno_calloc(Areno* areno, size_t size_in_byte);
-void  areno_reset (Areno* areno);
-void  areno_free  (Areno* areno);
-char *areno_printf(Areno* areno, const char *fmt, ...);
+void *areno_alloc  (Areno *areno, size_t size_in_byte);
+void *areno_calloc (Areno *areno, size_t size_in_byte);
+void *areno_realloc(Areno *areno, void *ptr, size_t old_size, size_t new_size);
+void  areno_reset  (Areno *areno);
+void  areno_free   (Areno *areno);
+char *areno_printf (Areno *areno, const char *fmt, ...);
 
-#endif // __ARENO_H_
+#define ARRAY_MIN_CAPACITY 128
+#define areno_arr_push(areno, arr, item) do {             \
+    if ((arr)->count >= (arr)->capacity) {                \
+        size_t old_cap = (arr)->capacity;                 \
+        if ((arr)->count <= 0)                            \
+            (arr)->capacity = ARRAY_MIN_CAPACITY;         \
+        else                                              \
+            (arr)->capacity *= 2;                         \
+        (arr)->items = areno_realloc((areno),             \
+                (arr)->items,                             \
+                old_cap,                                  \
+                sizeof(*(arr)->items) * (arr)->capacity); \
+    }                                                     \
+    (arr)->items[(arr)->count++] = (item);                \
+} while (0);
+
+#endif // ARENO_H_
 
 #ifdef ARENO_IMPLEMENTATION
 
-#ifdef   ARENO_DEBUG_INFO
-#include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
+
+#ifdef ARENO_DEBUG_INFO
+#include <stdio.h>
 void ARENO_DEBUG(const char *fmt, ...)
 {
 	va_list args;
@@ -107,8 +128,15 @@ void *areno_alloc(Areno* areno, size_t size_in_byte)
 void *areno_calloc(Areno* areno, size_t size_in_byte)
 {
     void *alloc = areno_alloc(areno, size_in_byte);
-    ARENO_MEMSET(alloc, 0, size_in_byte);
-    return alloc;
+    return ARENO_MEMSET(alloc, 0, size_in_byte);
+}
+
+void *areno_realloc(Areno *areno, void *ptr, size_t old_size, size_t new_size)
+{
+    if (new_size <= old_size) return ptr;
+    // TODO: maybe check in the future if this is the last alloc, to optimize space
+    void *alloc = areno_alloc(areno, new_size);
+    return ARENO_MEMCPY(alloc, ptr, old_size);
 }
 
 void areno_free(Areno* areno)
@@ -166,3 +194,4 @@ char *areno_printf(Areno* areno, const char *fmt, ...)
     return str;
 }
 #endif // ARENO_IMPLEMENTATION
+

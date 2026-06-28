@@ -1,5 +1,5 @@
-#ifndef   STRING_VIEW_H_
-#define   STRING_VIEW_H_
+#ifndef STRING_VIEW_H_
+#define STRING_VIEW_H_
 
 #include <stddef.h>
 #include <stdio.h>
@@ -52,5 +52,5 @@ String_View sv_get_line(String_View sv, size_t line)
     };
 }
 
-#endif // STRING_VIEW_IMPLEMENTATION 
+#endif//STRING_VIEW_IMPLEMENTATION 
 
