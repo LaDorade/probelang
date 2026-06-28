@@ -5,12 +5,12 @@
 #include <unistd.h>
 
 #include "parser.h"
+#include "lexer.h"
 
-#define STRING_VIEW_IMPLEMENTATION
-#include "string_view.h"
 #define ARENO_IMPLEMENTATION
 #include "areno.h"
-#include "lexer.h"
+#define STRING_VIEW_IMPLEMENTATION
+#include "string_view.h"
 
 #define BUF_SIZE 1024 * 1024
 
@@ -64,27 +64,44 @@ int main(void)
     };
     Token* tokens = lexer_lex(&lexer);
 
+    if (lexer.err.count > 0) {
+        for (size_t i = 0; i < lexer.err.count; i++) {
+            Lex_Error err = lexer.err.items[i];
+
+            size_t row = err.guilty.row;
+            size_t col = err.guilty.col;
+            printf("\e[1m" "%s:%zu:%zu: " "\033[31m" "error:" "\033[m" " %s" "\e[m",
+                    path, row, col,
+                    err.formatted
+                  );
+            String_View line = sv_get_line(lexer.sv, row);
+            printf("%.*s\n", (int)line.len, line.items);
+            printf("%*s""\033[32m" "^" "\033[m\n", (int)col - 1, "");
+        }
+        fflush(stdout);
+        return 1;
+    }
+
     Parser parser = (Parser) {
         .tokens = tokens,
-        .cursor = 0,
         .areno  = &global_areno,
     };
 
 
     Stmt *prog = parser_parse(&parser);
     if (prog == NULL) {
-        size_t start = parser.err.guilty.col - parser.err.guilty.size;
-        size_t row = parser.err.guilty.row;
-        size_t lex_size = parser.err.guilty.size; 
+        size_t row  = parser.err.guilty.row;
+        size_t col  = parser.err.guilty.col;
+        size_t size = parser.err.guilty.size; 
         printf("\e[1m" "%s:%zu:%zu: " "\033[31m" "error:" "\033[m" " %s" "\e[m",
-                path, row, start,
+                path, row, col,
                 parser.err.formatted
                 );
         String_View line = sv_get_line(lexer.sv, row);
         printf("%.*s\n", (int)line.len, line.items);
 
-        printf("%*s""\033[32m" "^" "\033[m", (int)start, "");
-        for (size_t i = 1; i < lex_size; i++) printf("\033[32m" "~" "\033[m");
+        printf("%*s""\033[32m" "^" "\033[m", (int)col - 1, "");
+        for (size_t i = 1; i < size; i++) printf("\033[32m" "~" "\033[m");
         printf("\n");
 
         fflush(stdout);

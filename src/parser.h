@@ -7,6 +7,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+
 #include "areno.h"
 #include "lexer.h"
 
@@ -25,7 +26,6 @@ typedef enum {
 
 typedef struct {
     Token  guilty;
-    size_t row, col;
     char  *formatted;
     Parse_Error_Kind code;
 } Parse_Error;
@@ -35,7 +35,6 @@ typedef struct {
     Areno      *areno;
     size_t      cursor;
     Token      *tokens;
-    Stmt       *prog;
 } Parser;
 
 typedef struct {

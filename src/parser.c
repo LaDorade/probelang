@@ -1,9 +1,11 @@
+#include "parser.h"
+
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "parser.h"
+#include "areno.h"
 #include "lexer.h"
 
 #define MAX_ARGS 10
@@ -104,7 +106,7 @@ Stmt *parse_stmt_assign(Parser *parser)
     Token current = parser_match(parser, Lex_let, Lex_const, Lex_Ident);
     if (current.kind == Lex_Invalid) {
         current = parser_peek(parser);
-        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected assignation, found: '%s'\n",
+        char *err = areno_printf(parser->areno, "Expected assignation, found: '%s'\n",
                 current.row,
                 current.col,
                 lexer_print(current.kind));
@@ -298,7 +300,7 @@ Stmt_Type *parse_type_expr(Parser *parser)
 
     if (!type->success_set && !type->error_set) {
         current = parser_peek(parser);
-        char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected type-expression, found: '%s'\n",
+        char *err = areno_printf(parser->areno, "Expected type-expression, found: '%s'\n",
                 current.row,
                 current.col,
                 lexer_print(current.kind));
@@ -484,11 +486,12 @@ Expr *parse_terminal(Parser *parser)
         return expr;
 
     }
-    char *err = areno_printf(parser->areno, "ERROR at %zu:%zu: Expected expression, found: '%s'\n",
-            current.row,
-            current.col,
-            lexer_print(current.kind));
-    parser_prepare_error(parser, err, Parse_Err_UnexpectedToken);
+    parser_prepare_error(
+        parser,
+        areno_printf(parser->areno,
+            "Expected expression, found: '%s'\n", lexer_print(current.kind)),
+        Parse_Err_UnexpectedToken
+    );
     return NULL;
 }
 
