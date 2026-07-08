@@ -212,26 +212,10 @@ Expr *parse_expr_funcall (Parser *parser);
 // Terminal
 Expr *parse_terminal     (Parser *parser);
 
-/////////////////////// UTILS ////////////////////////////////
-
-static inline Stmt *parser_create_stmts(Parser *parser, size_t nb);
-static inline Stmt *parser_create_stmt (Parser *parser, Stmt_Kind kind);
-static inline Expr *parser_create_exprs(Parser *parser, size_t nb);
-static inline Expr *parser_create_expr (Parser *parser, Expr_Kind kind);
-
-static inline Token parser_peek   (Parser *parser);
-static inline Token parser_prev   (Parser *parser);
-static inline void  parser_advance(Parser *parser);
-static inline Token parser_lookahead(Parser *parser, size_t nb);
-
-static inline bool  __parser_expect_impl (Parser *parser, Lexeme lexeme);
 #define parser_expect(parser, lexeme) do {if (!__parser_expect_impl(parser, lexeme)) return NULL; } while (0);
 
-static inline Token __parser_match_impl(Parser *parser, ...);
 #define parser_match(...) __parser_match_impl(__VA_ARGS__, Lex_Invalid)
 
-
-static inline void  parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind);
 
 /////////////////////// DUMPING ////////////////////////////////
 
@@ -239,5 +223,113 @@ void dump_stmt_block(Stmt_Block *block, int level);
 void dump_stmt_type(Stmt_Type *type, int level);
 void dump_expression (Expr *expr, int level);
 void dump_stmt(Stmt *stmt, int level);
+
+/////////////////////// UTILS ////////////////////////////////
+
+static inline Token parser_peek(Parser *parser)
+{
+    return parser->tokens[parser->cursor];
+}
+static inline Token parser_prev(Parser *parser)
+{
+    if (parser->cursor <= 0) {
+        return (Token) {
+            .kind = Lex_Invalid,
+        };
+    }
+    return parser->tokens[parser->cursor - 1];
+}
+static inline Token parser_lookahead(Parser *parser, size_t nb)
+{
+    for (size_t i = 0; i <= nb; i++) {
+        if ((parser->tokens[parser->cursor + i]).kind == Lex_EOF) {
+            return (Token) {
+                .kind = Lex_EOF
+            };
+        }
+    }
+    return parser->tokens[parser->cursor + nb];
+}
+
+static inline void parser_advance(Parser *parser)
+{
+    if (parser_peek(parser).kind == Lex_EOF) return;
+    parser->cursor += 1;
+}
+
+// Take current token, and wrap error
+static inline void parser_prepare_error(Parser *parser, char *msg, Parse_Error_Kind kind)
+{
+    Token current = parser_peek(parser);
+    parser->err = (Parse_Error) {
+        .guilty    = current,
+        .code      = msg == NULL ? Parse_Err_AllocError : kind,
+        .formatted = msg == NULL ? "Error alloc memory" : msg
+    };
+}
+
+static inline Token __parser_match_impl(Parser *parser, ...)
+{
+    va_list args;
+    va_start(args, parser);
+    Lexeme arg;
+    while ((arg = va_arg(args, Lexeme)) != Lex_Invalid) {
+        Token current = parser->tokens[parser->cursor];
+        if (parser_peek(parser).kind == arg) {
+            parser_advance(parser);
+            return current;
+        }
+    }
+    return (Token) {
+        .kind = Lex_Invalid
+    };
+}
+
+static inline bool __parser_expect_impl(Parser *parser, Lexeme lexeme)
+{
+    if (parser_match(parser, lexeme).kind == Lex_Invalid) {
+        Token current          = parser_peek(parser);
+        Token prev             = parser_prev(parser);
+        const char* lexeme_str = lexer_print(lexeme);
+        const char* prev_str   = token_print(&prev, parser->areno);
+        const char *curr_str   = token_print(&current, parser->areno);
+
+        char *err_msg = areno_printf(parser->areno,
+                "Expected '%s' after '%s', got '%s'\n",
+                lexeme_str,
+                prev_str,
+                curr_str);
+
+        parser_prepare_error(parser, err_msg, Parse_Err_UnexpectedToken);
+        return false;
+    }
+    return true;
+}
+
+static inline Stmt *parser_create_stmts(Parser *parser, size_t nb)
+{
+    Stmt *stmts = (Stmt*) areno_alloc(parser->areno, sizeof(Stmt) * nb);
+    memset(stmts, 0, sizeof(Stmt) * nb);
+    return stmts;
+}
+static inline Stmt *parser_create_stmt(Parser *parser, Stmt_Kind kind)
+{
+    Stmt *stmt = (Stmt*) parser_create_stmts(parser, 1);
+    stmt->kind = kind;
+    return stmt;
+}
+static inline Expr *parser_create_exprs(Parser *parser, size_t nb)
+{
+    Expr *exprs = (Expr*) areno_alloc(parser->areno, sizeof(Expr) * nb);
+    memset(exprs, 0, sizeof(Stmt) * nb);
+    return exprs;
+}
+static inline Expr *parser_create_expr(Parser *parser, Expr_Kind kind)
+{
+    Expr *expr = (Expr*) areno_alloc(parser->areno, sizeof(Expr));
+    memset(expr, 0, sizeof(Expr));
+    expr->kind = kind;
+    return expr;
+}
 
 #endif //PARSER_H_

@@ -161,15 +161,56 @@ Token  lex_ident (Lexer* lexer);
 
 
 ////////////////// UTILITIES //////////////////////
-static inline char  lexer_peek   (const Lexer *lex);
-static inline void  lexer_advance(Lexer *lex);
-static inline char  lexer_prev   (const Lexer *lex);
-static inline bool  lexer_match  (Lexer *lex, char c);
-static inline Token token_create (const Lexer *lexer, Lexeme lexeme);
+static inline char lexer_peek(const Lexer *lex)
+{
+    if (lex->eof) return 0;
+    return lex->sv.items[lex->cursor];
+}
+static inline void lexer_advance(Lexer *lex)
+{
+    if (lexer_peek(lex) == '\n') {
+        lex->row += 1;
+        lex->col  = 0; // \n count as the "first" (0 indexed) char
+    } else {
+        lex->col += 1;
+    }
+
+    if (lex->cursor >= lex->sv.len) {
+        lex->eof = true;
+        return;
+    }
+    lex->cursor += 1;
+}
+// return last char, first one of the string view if cursor is 0
+static inline char lexer_prev(const Lexer *lex)
+{
+    if (lex->cursor <= 0) return lex->sv.items[0];
+    return lex->sv.items[lex->cursor - 1];
+}
+static inline bool lexer_match(Lexer *lex, char c)
+{
+    if (lexer_peek(lex) == c)
+    {
+        lexer_advance(lex);
+        return true;
+    }
+    return false;
+}
+static inline Token token_create(const Lexer* lex, Lexeme lexeme)
+{
+    // is always minimum at 1 except for EOF or INVALID
+    size_t size = lex->cursor - lex->start;
+    return (Token) {
+        .kind = lexeme,
+        .col  = lex->col - size + 1,
+        .row  = lex->row,
+        .size = size,
+    };
+}
+
 
 //////////////////// PRINT ////////////////////////
 const char* lexer_print(Lexeme lexeme);
 char*       token_print (const Token *tok, Areno *areno);
 
 #endif //LEXER_H_
-
